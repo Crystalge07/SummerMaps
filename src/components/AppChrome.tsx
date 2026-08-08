@@ -17,14 +17,18 @@ export function AppChrome({ children }: { children: ReactNode }) {
   }, []);
 
   if (!splashDone) {
-    return <AppLoadingScreen />;
+    return (
+      <div className="app-frame">
+        <AppLoadingScreen />
+      </div>
+    );
   }
 
   return (
-    <>
+    <div className="app-frame">
       <div className="app-shell">{children}</div>
       <LocationConsent />
       <TabBar />
-    </>
+    </div>
   );
 }

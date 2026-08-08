@@ -26,7 +26,9 @@
   --sky: #c9dbc9;
 
   --tab-h: calc(56px + env(safe-area-inset-bottom, 0px));
-  --view-h: calc(100dvh - var(--tab-h));
+  /* Fills .app-shell; phone frame owns the viewport height. */
+  --view-h: 100%;
+  --phone-max: 430px;
   --card-shadow: 0 2px 12px rgba(44, 62, 45, 0.08);
   --card-shadow-lg: 0 10px 28px rgba(44, 62, 45, 0.14);
 }
@@ -54,6 +56,28 @@ body {
   background: var(--paper);
 }
 
+/* Phone-first shell: full-bleed on small screens; centered column on larger ones. */
+.app-frame {
+  width: 100%;
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  container-type: inline-size;
+  container-name: app;
+}
+
+.app-frame > .app-loading-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -72,17 +96,24 @@ a {
 
 /* ——— App shell + bottom tabs ——— */
 .app-shell {
-  height: var(--view-h);
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell > * {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .tab-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   z-index: 40;
+  flex: 0 0 auto;
+  width: 100%;
   height: var(--tab-h);
   padding: 0.35rem 0.5rem env(safe-area-inset-bottom, 0px);
   display: grid;
@@ -173,14 +204,15 @@ a {
   width: 100%;
   max-width: none;
   height: 100%;
-  padding: 1.25rem 1.5rem 1.5rem;
+  padding: 1.1rem 1.15rem 1.35rem;
   overflow: auto;
   box-sizing: border-box;
 }
 
 .split-page {
   display: grid;
-  grid-template-columns: minmax(280px, 36%) 1fr;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
   height: var(--view-h);
   width: 100%;
   overflow: hidden;
@@ -188,10 +220,12 @@ a {
 
 .split-side {
   padding: 1.5rem 1.5rem 1.75rem;
-  border-right: 1px solid var(--line);
+  border-right: 0;
+  border-bottom: 1px solid var(--line);
   background: var(--paper);
   overflow: auto;
   min-width: 0;
+  max-height: 38%;
 }
 
 .split-main {
@@ -423,8 +457,8 @@ a {
   flex: 1;
   min-height: 0;
   width: 100%;
-  max-width: 40rem;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -699,9 +733,13 @@ input.underline-input:focus {
   height: var(--view-h);
   overflow: auto;
   width: 100%;
-  padding: 1.25rem 1rem 2.75rem;
+  padding: 1.25rem 1rem;
   box-sizing: border-box;
   background: var(--color-bg);
+}
+
+.tab-page.friends-scroll {
+  padding: 1.25rem 1rem;
 }
 
 .friends-page {
@@ -1478,7 +1516,8 @@ input.underline-input:focus {
 
 .map-page {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
   height: var(--view-h);
   width: 100%;
   overflow: hidden;
@@ -1486,12 +1525,14 @@ input.underline-input:focus {
 
 .map-sidebar {
   padding: 1.25rem;
-  border-right: 1px solid var(--line);
+  border-right: 0;
+  border-bottom: 1px solid var(--line);
   background: var(--paper);
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
   min-width: 0;
+  max-height: 38%;
   overflow: auto;
 }
 
@@ -1645,7 +1686,7 @@ input.underline-input:focus {
 }
 
 .consent-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 80;
   display: grid;
@@ -1937,7 +1978,7 @@ input.underline-input:focus {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
 
@@ -2876,13 +2917,36 @@ input.underline-input:focus {
   margin-top: 0.65rem;
 }
 
-@media (max-width: 699px) {
+/* Phone-width refinements (container = .app-frame, not the Mac viewport). */
+@container app (max-width: 699px) {
   .themes-grid {
     grid-template-columns: 1fr;
   }
 
   .live-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .live-feed-row {
+    grid-template-columns: 4rem 1fr;
+  }
+
+  .hero-inner {
+    width: 100%;
+    max-width: none;
+    padding: 1.25rem 1.25rem 1.75rem;
+    justify-content: flex-end;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .map-shell,
+  .map-fallback {
+    height: 100%;
+    min-height: 0;
   }
 }
 
@@ -2922,7 +2986,6 @@ input.underline-input:focus {
     padding: 1.25rem 1.25rem 1.75rem;
     justify-content: flex-end;
   }
-
 }
 
 @media (max-width: 520px) {
@@ -2937,5 +3000,94 @@ input.underline-input:focus {
 
   .actions .btn {
     width: 100%;
+  }
+}
+
+@container app (max-width: 380px) {
+  .stat-row,
+  .live-metrics,
+  .insights-window-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    grid-template-columns: 1fr;
+  }
+
+  .actions .btn {
+    width: 100%;
+  }
+
+  .checkin-page {
+    padding-inline: 0.85rem;
+  }
+
+  .checkin-header h1 {
+    font-size: clamp(1.65rem, 8vw, 2.1rem);
+  }
+}
+
+/* Larger screens: keep the iPhone composition centered; fill Mac height. */
+@media (min-width: 560px) {
+  body {
+    background:
+      radial-gradient(
+        ellipse 70% 55% at 50% 32%,
+        color-mix(in srgb, var(--butter) 24%, transparent),
+        transparent 70%
+      ),
+      linear-gradient(
+        165deg,
+        var(--paper-2) 0%,
+        var(--paper) 48%,
+        color-mix(in srgb, var(--sage) 16%, var(--paper)) 100%
+      );
+  }
+
+  .app-frame {
+    max-width: var(--phone-max);
+    border-radius: 0;
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent),
+      0 22px 56px rgba(44, 62, 45, 0.16);
+  }
+
+  .mosaic-overlay {
+    left: 50%;
+    right: auto;
+    width: min(var(--phone-max), 100vw);
+    transform: translateX(-50%);
+  }
+}
+
+/* Very tall desktops — keep the column phone-width, stretch full height. */
+@media (min-width: 900px) {
+  .app-frame {
+    max-width: min(var(--phone-max), 100vw);
+  }
+
+  .insights-map-embed {
+    height: 240px;
+  }
+
+  .insights-map-embed .map-shell,
+  .insights-map-embed .map-fallback {
+    min-height: 240px;
+  }
+}
+
+/* Short landscape phones / short browser windows */
+@media (max-height: 560px) {
+  .checkin-header .lede {
+    display: none;
+  }
+
+  .photo-stage {
+    min-height: 140px;
+  }
+
+  .map-sidebar,
+  .split-side {
+    max-height: 30%;
   }
 }
