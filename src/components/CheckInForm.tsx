@@ -148,18 +148,25 @@ export function CheckInForm() {
       </label>
 
       <div className="actions">
-        <button type="button" className="btn ghost" onClick={grabLocation}>
-          {coords
-            ? useDemoLocation
-              ? "Demo pin set"
-              : "Location locked"
-            : "Grab location"}
+        <button
+          type="button"
+          className="btn primary"
+          onClick={grabLocation}
+          disabled={status === "uploading" || status === "locating"}
+        >
+          {status === "locating"
+            ? "Getting place…"
+            : coords
+              ? useDemoLocation
+                ? "Demo pin set"
+                : "Location locked"
+              : "Grab location"}
         </button>
         <button
           type="button"
           className="btn primary"
           onClick={submit}
-          disabled={status === "uploading" || status === "locating"}
+          disabled={!file || status === "uploading" || status === "locating"}
         >
           {status === "uploading" ? "Saving…" : "Check in"}
         </button>
