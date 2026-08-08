@@ -1,9 +1,5 @@
-import { CheckInForm } from "@/components/CheckInForm";
+import { redirect } from "next/navigation";
 
 export default function CapturePage() {
-  return (
-    <main className="split-page">
-      <CheckInForm />
-    </main>
-  );
+  redirect("/");
 }

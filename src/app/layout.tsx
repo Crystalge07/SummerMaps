@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Caveat, Nunito } from "next/font/google";
-import { LocationConsent } from "@/components/LocationConsent";
-import { Nav } from "@/components/Nav";
 import { AuthGate } from "@/components/AuthGate";
+import { LocationConsent } from "@/components/LocationConsent";
+import { TabBar } from "@/components/TabBar";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
@@ -31,10 +31,10 @@ export default function RootLayout({
     <html lang="en" className={`${nunito.variable} ${caveat.variable}`}>
       <body>
         <AuthProvider>
-          <Nav />
+          <div className="app-shell">{children}</div>
           <AuthGate />
           <LocationConsent />
-          {children}
+          <TabBar />
         </AuthProvider>
       </body>
     </html>

@@ -26,12 +26,11 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Routes
 | Route | Feature |
 | --- | --- |
-| `/` | Today's prompt + entry |
-| `/capture` | Photo + auto location pin for today's prompt |
-| `/path` | Your day as a connected path |
-| `/friends` | Add friends · see their paths |
-| `/city` | Public map of individual finds (no identity links) |
-| `/dashboard` | City intelligence / Pulse |
+| `/` | Home — today's prompt + camera check-in |
+| `/map` | Map — city pins; Paths toggle for Mine / Friends |
+| `/friends` | Add friends · share codes |
+| `/profile` | Pulse stats |
+| `/capture`, `/check-in`, `/path`, `/city`, `/dashboard`, `/friends/map` | Redirect into the tabs above |
 
 ---
 

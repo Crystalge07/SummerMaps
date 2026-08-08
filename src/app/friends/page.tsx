@@ -14,7 +14,7 @@ function FriendsInner() {
   }, [params]);
 
   return (
-    <main className="page friends-scroll">
+    <main className="tab-page friends-scroll">
       <FriendsPanel initialCode={initialCode} />
     </main>
   );
@@ -22,7 +22,9 @@ function FriendsInner() {
 
 export default function FriendsPage() {
   return (
-    <Suspense fallback={<main className="page friends-scroll">Loading friends…</main>}>
+    <Suspense
+      fallback={<main className="tab-page friends-scroll">Loading friends…</main>}
+    >
       <FriendsInner />
     </Suspense>
   );

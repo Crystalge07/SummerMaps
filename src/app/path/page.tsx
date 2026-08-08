@@ -1,5 +1,5 @@
-import { PersonalPathView } from "@/components/PersonalPathView";
+import { redirect } from "next/navigation";
 
 export default function PathPage() {
-  return <PersonalPathView />;
+  redirect("/map?layer=mine");
 }
