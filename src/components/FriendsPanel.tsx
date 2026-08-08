@@ -6,12 +6,12 @@ import {
   addFriendByUsername,
   ensureDeviceProfile,
   getFriendDeviceIds,
-  getProfileByDevice,
+  getProfileByDeviceId,
   searchProfiles,
 } from "@/lib/api";
 import { useAuthOptional } from "@/lib/auth";
 import { colorForDevice } from "@/lib/colors";
-import { getDeviceId } from "@/lib/device";
+import { friendCodeFromDeviceId, getDeviceId } from "@/lib/device";
 import type { DeviceProfile, Profile } from "@/lib/types";
 import { normalizeUsername } from "@/lib/username";
 import { DemoSeedButton } from "./DemoSeedButton";
@@ -50,28 +50,40 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   }, [me, username]);
 
   async function refresh() {
-    const deviceId = getDeviceId();
+    // Prefer auth uid (synced into localStorage) so both sides of a friendship
+    // query the same id that was written into friendships.a/b_device_id.
+    const deviceId = auth?.user?.id || getDeviceId();
+    if (!deviceId) return;
+
     const profile = await ensureDeviceProfile(
       deviceId,
       auth?.profile?.username ?? undefined,
     );
     setMe(profile);
+
+    // Both directions: people I added AND people who added me.
     const ids = await getFriendDeviceIds(deviceId);
-    const profiles = (
-      await Promise.all(
-        ids.map(async (id) => {
-          const existing = await getProfileByDevice(id);
-          return existing ?? ensureDeviceProfile(id);
-        }),
-      )
-    ).filter(Boolean) as DeviceProfile[];
+    const profiles = await Promise.all(
+      ids.map(async (id) => {
+        const existing = await getProfileByDeviceId(id);
+        if (existing) return existing;
+        return {
+          device_id: id,
+          code: friendCodeFromDeviceId(id),
+          display_name: null,
+          created_at: new Date(0).toISOString(),
+        } satisfies DeviceProfile;
+      }),
+    );
     setFriends(profiles);
   }
 
   useEffect(() => {
     void refresh();
+    // Re-run when auth identity is ready — avoids loading with a stale
+    // pre-login localStorage UUID and missing mutual friendships.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth?.profile?.username]);
+  }, [auth?.user?.id, auth?.profile?.username]);
 
   useEffect(() => {
     const q = normalizeUsername(query);
@@ -326,7 +338,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
                   <span className="friends-contact-name">
                     {f.display_name?.trim()
                       ? `@${f.display_name.trim()}`
-                      : f.code}
+                      : f.code || friendCodeFromDeviceId(f.device_id)}
                   </span>
                   <span className="friends-contact-go" aria-hidden>
                     →

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { deleteCheckIn, getTodayCheckinsForDevice } from "@/lib/api";
 import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
@@ -12,6 +13,7 @@ import { PathMap } from "./PathMap";
 import { PathReplayControls } from "./PathReplayControls";
 
 export function PersonalPathView() {
+  const pathname = usePathname();
   const [deviceId, setDeviceId] = useState("");
   const [paths, setPaths] = useState<PathSeries[]>([]);
   const [selected, setSelected] = useState<CheckIn | null>(null);
@@ -19,23 +21,32 @@ export function PersonalPathView() {
   const [loading, setLoading] = useState(true);
   const prompt = getTodaysPrompt();
 
-  useEffect(() => {
+  const loadPath = useCallback(async () => {
     const id = getDeviceId();
+    if (!id) return;
     setDeviceId(id);
-    getTodayCheckinsForDevice(id)
-      .then((rows) => {
-        setPaths([
-          {
-            deviceId: id,
-            color: colorForDevice(id),
-            label: "Your day",
-            checkins: rows,
-            connect: true,
-          },
-        ]);
-      })
-      .finally(() => setLoading(false));
+    setLoading(true);
+    try {
+      // Cache-bust: always hit storage after navigating from a fresh check-in.
+      const rows = await getTodayCheckinsForDevice(id);
+      setPaths([
+        {
+          deviceId: id,
+          color: colorForDevice(id),
+          label: "Your day",
+          checkins: rows,
+          connect: true,
+        },
+      ]);
+      setProgress(1);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadPath();
+  }, [loadPath, pathname]);
 
   function removeCheckIn(id: string) {
     setPaths((prev) =>
