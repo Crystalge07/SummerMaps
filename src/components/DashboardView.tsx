@@ -12,12 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  getAllCheckins,
-  getCheckinsForDevice,
-  getTodayCityCheckins,
-} from "@/lib/api";
-import { getDeviceId } from "@/lib/device";
+import { getAllCheckins, getTodayCityCheckins } from "@/lib/api";
 import {
   buildMosaicDays,
   isAfterMosaicCutoff,
@@ -99,7 +94,6 @@ function MemoryCard({
 export function DashboardView() {
   const [today, setToday] = useState<CheckIn[]>([]);
   const [all, setAll] = useState<CheckIn[]>([]);
-  const [mine, setMine] = useState<CheckIn[]>([]);
   const [activeMosaic, setActiveMosaic] = useState<MosaicDay | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [showLockNotif, setShowLockNotif] = useState(false);
@@ -108,29 +102,27 @@ export function DashboardView() {
   const locked = isAfterMosaicCutoff(now);
 
   useEffect(() => {
-    getTodayCityCheckins().then(setToday);
-    getAllCheckins().then(setAll);
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
 
-    async function loadMine() {
-      const id = getDeviceId();
-      if (!id) return;
+    async function loadCity() {
       try {
-        const rows = await getCheckinsForDevice(id);
-        if (!cancelled) setMine(rows);
+        const [todayRows, allRows] = await Promise.all([
+          getTodayCityCheckins(),
+          getAllCheckins(),
+        ]);
+        if (cancelled) return;
+        setToday(todayRows);
+        setAll(allRows);
       } catch {
         /* ignore transient fetch errors */
       }
     }
 
-    loadMine();
-    // Keep today's mosaic live while unlocked; slower poll after lock.
+    loadCity();
+    // Shared city mosaic: poll often while live so everyone's finds appear.
     const ms = locked ? 120_000 : 20_000;
-    const id = window.setInterval(loadMine, ms);
-    const onFocus = () => loadMine();
+    const id = window.setInterval(loadCity, ms);
+    const onFocus = () => loadCity();
     window.addEventListener("focus", onFocus);
     return () => {
       cancelled = true;
@@ -145,7 +137,7 @@ export function DashboardView() {
     return () => window.clearInterval(id);
   }, []);
 
-  const mosaicDays = useMemo(() => buildMosaicDays(mine, now), [mine, now]);
+  const mosaicDays = useMemo(() => buildMosaicDays(all, now), [all, now]);
   const todayMosaic = useMemo(
     () => mosaicDays.find((d) => d.dayKey === todayKey) ?? null,
     [mosaicDays, todayKey],
@@ -247,9 +239,9 @@ export function DashboardView() {
           <div className="panel-kicker">profile · memories</div>
           <h1>Memories</h1>
           <p className="lede">
-            Your mosaic builds live as you capture. At {cutoffLabel()} it locks
-            — finds after that still hit the map, but not tonight&apos;s
-            collage.
+            Everyone&apos;s finds build one shared mosaic live through the day.
+            At {cutoffLabel()} it locks — later finds still hit the map, but not
+            tonight&apos;s collage.
           </p>
 
           {!locked ? (
@@ -261,12 +253,13 @@ export function DashboardView() {
                   onOpen={() => setActiveMosaic(todayMosaic)}
                 />
                 <p className="meta">
-                  Updating through {cutoffLabel()} · tap to view full screen
+                  City-wide · updating through {cutoffLabel()} · tap for full
+                  screen
                 </p>
               </div>
             ) : (
               <p className="meta memories-empty">
-                Capture finds today and they&apos;ll fill in here until{" "}
+                As people notice today, their finds fill the shared mosaic until{" "}
                 {cutoffLabel()}.
               </p>
             )
@@ -287,7 +280,7 @@ export function DashboardView() {
             </div>
           ) : (
             <p className="meta memories-empty">
-              No finds before {cutoffLabel()} today — nothing locked into a
+              No city finds before {cutoffLabel()} today — nothing locked into a
               mosaic.
             </p>
           )}
@@ -297,8 +290,8 @@ export function DashboardView() {
           <h2>Past mosaics</h2>
           {memoryDays.length === 0 ? (
             <p className="meta">
-              After {cutoffLabel()}, today&apos;s collage lands here with the
-              rest of your days.
+              After {cutoffLabel()}, today&apos;s shared collage lands here with
+              the rest of the city&apos;s days.
             </p>
           ) : (
             <ul className="memories-list">
