@@ -11,6 +11,10 @@ import MapboxMap, {
 } from "react-map-gl/mapbox";
 import type { PathCrossing } from "@/lib/crossings";
 import { CITY_CENTER } from "@/lib/geo";
+import {
+  curvedLineThrough,
+  displayCoordsByCheckInId,
+} from "@/lib/pathGeometry";
 import type { CheckIn, PathSeries } from "@/lib/types";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -37,48 +41,6 @@ function slicePath(checkins: CheckIn[], progress: number) {
   if (progress <= 0) return checkins.slice(0, 1);
   const count = Math.max(1, Math.ceil(checkins.length * progress));
   return checkins.slice(0, count);
-}
-
-type MarkerPlacement = {
-  checkIn: CheckIn;
-  color: string;
-  offset: [number, number];
-};
-
-/** Fan out pins that share nearly the same spot so stacked finds stay visible. */
-function placeMarkers(paths: PathSeries[]): MarkerPlacement[] {
-  const items = paths.flatMap((path) =>
-    path.checkins.map((checkIn) => ({ checkIn, color: path.color })),
-  );
-
-  const groups = new Map<string, typeof items>();
-  for (const item of items) {
-    // ~11m cells — GPS/demo fallbacks often land on the same coordinate.
-    const key = `${item.checkIn.lat.toFixed(4)},${item.checkIn.lng.toFixed(4)}`;
-    const list = groups.get(key) ?? [];
-    list.push(item);
-    groups.set(key, list);
-  }
-
-  const placed: MarkerPlacement[] = [];
-  for (const group of groups.values()) {
-    if (group.length === 1) {
-      placed.push({ ...group[0], offset: [0, 0] });
-      continue;
-    }
-    const radius = 12 + Math.min(group.length, 8) * 3;
-    group.forEach((item, i) => {
-      const angle = (Math.PI * 2 * i) / group.length - Math.PI / 2;
-      placed.push({
-        ...item,
-        offset: [
-          Math.round(Math.cos(angle) * radius),
-          Math.round(Math.sin(angle) * radius),
-        ],
-      });
-    });
-  }
-  return placed;
 }
 
 export function PathMap({
@@ -111,11 +73,22 @@ export function PathMap({
     }
   }, [paths, popup]);
 
+  // Positions are derived from the full path so replay slicing doesn't reshuffle fans.
+  const displayCoords = useMemo(
+    () => displayCoordsByCheckInId(paths),
+    [paths],
+  );
+
   const visiblePaths = useMemo(
     () =>
       paths.map((p) => ({
         ...p,
-        checkins: slicePath(p.checkins, replayProgress),
+        checkins: slicePath(
+          [...p.checkins].sort((a, b) =>
+            a.created_at.localeCompare(b.created_at),
+          ),
+          replayProgress,
+        ),
       })),
     [paths, replayProgress],
   );
@@ -127,7 +100,19 @@ export function PathMap({
       ? { lat: allPoints[0].lat, lng: allPoints[0].lng }
       : CITY_CENTER;
 
-  const markers = useMemo(() => placeMarkers(visiblePaths), [visiblePaths]);
+  const markers = useMemo(
+    () =>
+      visiblePaths.flatMap((path) =>
+        path.checkins.map((checkIn) => {
+          const pos = displayCoords.get(checkIn.id) ?? {
+            lat: checkIn.lat,
+            lng: checkIn.lng,
+          };
+          return { checkIn, color: path.color, lat: pos.lat, lng: pos.lng };
+        }),
+      ),
+    [visiblePaths, displayCoords],
+  );
 
   const heatmapData = useMemo(
     () => ({
@@ -272,12 +257,16 @@ export function PathMap({
           visiblePaths.map((path) => {
             if (path.connect === false) return null;
             if (path.checkins.length < 2) return null;
+            const stops = path.checkins.map((c) => {
+              const pos = displayCoords.get(c.id) ?? { lat: c.lat, lng: c.lng };
+              return [pos.lng, pos.lat] as [number, number];
+            });
             const geojson = {
               type: "Feature" as const,
               properties: {},
               geometry: {
                 type: "LineString" as const,
-                coordinates: path.checkins.map((c) => [c.lng, c.lat]),
+                coordinates: curvedLineThrough(stops),
               },
             };
             return (
@@ -305,13 +294,12 @@ export function PathMap({
           })}
 
         {showMarkers &&
-          markers.map(({ checkIn: c, color, offset }) => (
+          markers.map(({ checkIn: c, color, lat, lng }) => (
             <Marker
               key={c.id}
-              latitude={c.lat}
-              longitude={c.lng}
+              latitude={lat}
+              longitude={lng}
               anchor="bottom"
-              offset={offset}
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
                 onSelectCheckIn?.(c);
@@ -359,8 +347,8 @@ export function PathMap({
 
         {popup && (
           <Popup
-            latitude={popup.lat}
-            longitude={popup.lng}
+            latitude={displayCoords.get(popup.id)?.lat ?? popup.lat}
+            longitude={displayCoords.get(popup.id)?.lng ?? popup.lng}
             anchor="bottom"
             offset={36}
             closeOnClick={false}
