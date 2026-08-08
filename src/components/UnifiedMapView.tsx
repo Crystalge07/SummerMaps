@@ -14,7 +14,6 @@ import {
 } from "@/lib/api";
 import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
-import { friendCodeFromDeviceId } from "@/lib/friendCode";
 import type { CheckIn, PathSeries } from "@/lib/types";
 import { CheckInDetail } from "./CheckInDetail";
 import { PathMap, type MapViewMode } from "./PathMap";
@@ -99,14 +98,15 @@ export function UnifiedMapView() {
       const series: PathSeries[] = await Promise.all(
         deviceIds.map(async (deviceId, index) => {
           const profile = await getProfileByDevice(deviceId);
-          const code = profile?.code ?? friendCodeFromDeviceId(deviceId);
           const name = profile?.display_name?.trim();
           const label =
             deviceId === me
               ? name
-                ? `You · ${name}`
+                ? `You · @${name}`
                 : "You"
-              : name || code;
+              : name
+                ? `@${name}`
+                : "Friend";
           const rows = (byDevice.get(deviceId) ?? []).sort((a, b) =>
             a.created_at.localeCompare(b.created_at),
           );

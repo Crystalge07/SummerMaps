@@ -152,7 +152,7 @@ export function InsightsView() {
         <section className="chart-panel">
           <h2>Today</h2>
           <p className="meta chart-hint">Citywide · today</p>
-          <div className="stat-row insights-window-stats">
+          <div className="insights-window-stats">
             <article>
               <strong>{today.length}</strong>
               <span>captures today</span>
@@ -263,7 +263,7 @@ export function InsightsView() {
         <section className="chart-panel">
           <h2>All time</h2>
           <p className="meta chart-hint">Citywide · all time</p>
-          <div className="stat-row insights-window-stats">
+          <div className="insights-window-stats">
             <article>
               <strong>{all.length}</strong>
               <span>captures</span>
