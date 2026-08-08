@@ -1,6 +1,7 @@
 "use client";
 
 import imageCompression from "browser-image-compression";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   createCheckIn,
@@ -19,16 +20,12 @@ export function CheckInForm() {
   const streamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const capturingRef = useRef(false);
+  const captionRef = useRef("");
   const [phase, setPhase] = useState<CameraPhase>("idle");
   const [preview, setPreview] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
   const [caption, setCaption] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
-    null,
-  );
-  const [useDemoLocation, setUseDemoLocation] = useState(false);
   const [startingCamera, setStartingCamera] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const prompt = getTodaysPrompt();
@@ -36,6 +33,10 @@ export function CheckInForm() {
   useEffect(() => {
     getDeviceId();
   }, []);
+
+  useEffect(() => {
+    captionRef.current = caption;
+  }, [caption]);
 
   // Cleanup only touches refs so this effect stays dependency-free.
   useEffect(() => {
@@ -85,7 +86,6 @@ export function CheckInForm() {
       previewUrlRef.current = null;
     }
     setPreview(null);
-    setFile(null);
   }
 
   async function startCamera() {
@@ -135,6 +135,41 @@ export function CheckInForm() {
     }
   }
 
+  async function pinCapture(file: File) {
+    setStatus("locating");
+    setMessage("Getting your place…");
+
+    let position = CITY_CENTER;
+    let demo = false;
+    try {
+      position = await getCurrentPosition();
+    } catch {
+      demo = true;
+    }
+
+    setStatus("uploading");
+    setMessage(demo ? "Pinning with a downtown demo place…" : "Pinning to the map…");
+
+    const deviceId = getDeviceId();
+    const photoUrl = await uploadCheckInPhoto(file, deviceId);
+    await createCheckIn({
+      device_id: deviceId,
+      prompt,
+      lat: position.lat,
+      lng: position.lng,
+      photo_url: photoUrl,
+      caption: captionRef.current.trim() || null,
+    });
+
+    setStatus("done");
+    setMessage(
+      demo
+        ? "Pinned with a downtown demo place — location was unavailable."
+        : "Pinned. Your path just grew.",
+    );
+    setCaption("");
+  }
+
   async function capturePhoto() {
     if (capturingRef.current) return;
 
@@ -156,7 +191,6 @@ export function CheckInForm() {
       if (!ctx) throw new Error("Canvas unavailable");
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Encode the current frame to a JPEG Blob, then release the camera.
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (result) =>
@@ -174,7 +208,7 @@ export function CheckInForm() {
         useWebWorker: true,
         fileType: "image/jpeg",
       });
-      const asFile = new File([compressed], "checkin.jpg", {
+      const asFile = new File([compressed], "capture.jpg", {
         type: "image/jpeg",
       });
 
@@ -183,86 +217,34 @@ export function CheckInForm() {
       }
       const url = URL.createObjectURL(asFile);
       previewUrlRef.current = url;
-      setFile(asFile);
       setPreview(url);
       setPhase("preview");
-      setStatus("idle");
-      setMessage("");
-    } catch {
+
+      await pinCapture(asFile);
+    } catch (err) {
       setStatus("error");
-      setMessage("Could not capture that photo. Try again.");
-      void startCamera();
+      setMessage(
+        err instanceof Error ? err.message : "Could not capture that photo. Try again.",
+      );
+      // If we never reached preview, reopen the camera for another try.
+      if (!previewUrlRef.current) {
+        void startCamera();
+      }
     } finally {
       capturingRef.current = false;
       setCapturing(false);
     }
   }
 
-  function retakePhoto() {
-    void startCamera();
+  function resetForAnother() {
+    clearPreview();
+    setPhase("idle");
+    setStatus("idle");
+    setMessage("");
   }
 
-  async function grabLocation() {
-    setStatus("locating");
-    setMessage("Getting your place…");
-    try {
-      const pos = await getCurrentPosition();
-      setCoords(pos);
-      setUseDemoLocation(false);
-      setStatus("idle");
-      setMessage("");
-    } catch {
-      setCoords(CITY_CENTER);
-      setUseDemoLocation(true);
-      setStatus("idle");
-      setMessage(
-        "Location unavailable — using downtown demo pin. You can still check in.",
-      );
-    }
-  }
-
-  async function submit() {
-    if (!file) {
-      setStatus("error");
-      setMessage("A photo is required for every check-in.");
-      return;
-    }
-
-    setStatus("uploading");
-    setMessage("Saving your find…");
-
-    try {
-      let position = coords;
-      if (!position) {
-        try {
-          position = await getCurrentPosition();
-        } catch {
-          position = CITY_CENTER;
-          setUseDemoLocation(true);
-        }
-      }
-
-      const deviceId = getDeviceId();
-      const photoUrl = await uploadCheckInPhoto(file, deviceId);
-      await createCheckIn({
-        device_id: deviceId,
-        prompt,
-        lat: position.lat,
-        lng: position.lng,
-        photo_url: photoUrl,
-        caption: caption.trim() || null,
-      });
-
-      setStatus("done");
-      setMessage("Pinned. Your path just grew.");
-      clearPreview();
-      setPhase("idle");
-      setCaption("");
-    } catch (err) {
-      setStatus("error");
-      setMessage(err instanceof Error ? err.message : "Check-in failed.");
-    }
-  }
+  const busy =
+    capturing || status === "locating" || status === "uploading";
 
   return (
     <>
@@ -272,11 +254,11 @@ export function CheckInForm() {
           Find <em>{prompt}</em>
         </h1>
         <p className="lede">
-          Spot it in the world, take one photo, pin where you are. Opt-in only —
-          whenever you notice it.
+          Spot it in the world, take one photo — we grab your place and pin it
+          to the map. Opt-in only, whenever you notice it.
         </p>
         <p className="meta">
-          Opens your camera to take one photo — no uploads.
+          Opens your camera for one photo — no uploads from your library.
         </p>
       </aside>
 
@@ -286,7 +268,7 @@ export function CheckInForm() {
         >
           {phase === "preview" && preview ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="Check-in preview" />
+            <img src={preview} alt="Capture preview" />
           ) : phase === "live" ? (
             <>
               <video
@@ -296,13 +278,17 @@ export function CheckInForm() {
                 muted
                 autoPlay
               />
-              {capturing ? (
+              {busy ? (
                 <div
                   className="camera-processing"
                   role="status"
                   aria-live="polite"
                 >
-                  Processing…
+                  {status === "locating"
+                    ? "Getting place…"
+                    : status === "uploading"
+                      ? "Pinning…"
+                      : "Processing…"}
                 </div>
               ) : (
                 <div className="camera-chrome">
@@ -333,7 +319,7 @@ export function CheckInForm() {
               type="button"
               className="photo-placeholder"
               onClick={() => void startCamera()}
-              disabled={startingCamera}
+              disabled={startingCamera || busy}
             >
               <span>
                 {startingCamera
@@ -344,50 +330,33 @@ export function CheckInForm() {
           )}
         </div>
 
-        {phase === "preview" && (
-          <div className="photo-retake">
-            <button type="button" className="btn ghost" onClick={retakePhoto}>
-              Retake photo
+        {status !== "done" && (
+          <label className="field">
+            <span>Caption (optional)</span>
+            <input
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Where did you spot it?"
+              maxLength={120}
+              disabled={busy}
+            />
+          </label>
+        )}
+
+        {status === "done" && (
+          <div className="actions">
+            <Link href="/path" className="btn primary">
+              See on my path
+            </Link>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={resetForAnother}
+            >
+              Capture another
             </button>
           </div>
         )}
-
-        <label className="field">
-          <span>Caption (optional)</span>
-          <input
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            placeholder="Where did you spot it?"
-            maxLength={120}
-          />
-        </label>
-
-        <div className="actions">
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={grabLocation}
-            disabled={status === "uploading" || status === "locating" || capturing}
-          >
-            {status === "locating"
-              ? "Getting place…"
-              : coords
-                ? useDemoLocation
-                  ? "Demo pin set"
-                  : "Location locked"
-                : "Grab location"}
-          </button>
-          <button
-            type="button"
-            className="btn primary"
-            onClick={submit}
-            disabled={
-              !file || status === "uploading" || status === "locating" || capturing
-            }
-          >
-            {status === "uploading" ? "Saving…" : "Pin it"}
-          </button>
-        </div>
 
         {message && (
           <p className={`status ${status === "error" ? "error" : ""}`}>

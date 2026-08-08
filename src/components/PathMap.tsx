@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-import Map, {
+import MapboxMap, {
   Layer,
   Marker,
   NavigationControl,
@@ -37,6 +37,48 @@ function slicePath(checkins: CheckIn[], progress: number) {
   if (progress <= 0) return checkins.slice(0, 1);
   const count = Math.max(1, Math.ceil(checkins.length * progress));
   return checkins.slice(0, count);
+}
+
+type MarkerPlacement = {
+  checkIn: CheckIn;
+  color: string;
+  offset: [number, number];
+};
+
+/** Fan out pins that share nearly the same spot so stacked finds stay visible. */
+function placeMarkers(paths: PathSeries[]): MarkerPlacement[] {
+  const items = paths.flatMap((path) =>
+    path.checkins.map((checkIn) => ({ checkIn, color: path.color })),
+  );
+
+  const groups = new Map<string, typeof items>();
+  for (const item of items) {
+    // ~11m cells — GPS/demo fallbacks often land on the same coordinate.
+    const key = `${item.checkIn.lat.toFixed(4)},${item.checkIn.lng.toFixed(4)}`;
+    const list = groups.get(key) ?? [];
+    list.push(item);
+    groups.set(key, list);
+  }
+
+  const placed: MarkerPlacement[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      placed.push({ ...group[0], offset: [0, 0] });
+      continue;
+    }
+    const radius = 12 + Math.min(group.length, 8) * 3;
+    group.forEach((item, i) => {
+      const angle = (Math.PI * 2 * i) / group.length - Math.PI / 2;
+      placed.push({
+        ...item,
+        offset: [
+          Math.round(Math.cos(angle) * radius),
+          Math.round(Math.sin(angle) * radius),
+        ],
+      });
+    });
+  }
+  return placed;
 }
 
 export function PathMap({
@@ -84,6 +126,8 @@ export function PathMap({
     : allPoints[0]
       ? { lat: allPoints[0].lat, lng: allPoints[0].lng }
       : CITY_CENTER;
+
+  const markers = useMemo(() => placeMarkers(visiblePaths), [visiblePaths]);
 
   const heatmapData = useMemo(
     () => ({
@@ -139,7 +183,7 @@ export function PathMap({
 
   return (
     <div className="map-shell">
-      <Map
+      <MapboxMap
         mapboxAccessToken={token}
         initialViewState={{
           latitude: center.lat,
@@ -261,56 +305,43 @@ export function PathMap({
           })}
 
         {showMarkers &&
-          visiblePaths.flatMap((path) =>
-            path.checkins.map((c) => (
-              <Marker
-                key={c.id}
-                latitude={c.lat}
-                longitude={c.lng}
-                anchor="bottom"
-                onClick={(e) => {
-                  e.originalEvent.stopPropagation();
-                  onSelectCheckIn?.(c);
-                  if (
-                    ownDeviceId &&
-                    c.device_id === ownDeviceId &&
-                    onDeleteCheckIn
-                  ) {
-                    setPopup(c);
-                    setConfirmDelete(false);
-                    setDeleteError("");
-                  }
-                }}
+          markers.map(({ checkIn: c, color, offset }) => (
+            <Marker
+              key={c.id}
+              latitude={c.lat}
+              longitude={c.lng}
+              anchor="bottom"
+              offset={offset}
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                onSelectCheckIn?.(c);
+                if (
+                  ownDeviceId &&
+                  c.device_id === ownDeviceId &&
+                  onDeleteCheckIn
+                ) {
+                  setPopup(c);
+                  setConfirmDelete(false);
+                  setDeleteError("");
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="map-pin"
+                style={{ ["--pin-accent" as string]: color }}
+                title={format(new Date(c.created_at), "h:mm a")}
+                aria-label={
+                  anonymizePhotos
+                    ? `Find at ${format(new Date(c.created_at), "h:mm a")}`
+                    : `Open find from ${format(new Date(c.created_at), "h:mm a")}`
+                }
               >
-                <button
-                  type="button"
-                  className="map-pin"
-                  style={{ ["--pin-accent" as string]: path.color }}
-                  title={format(new Date(c.created_at), "h:mm a")}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/brand/pin.svg"
-                    alt=""
-                    className="map-pin-illus"
-                  />
-                  {!anonymizePhotos && c.photo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.photo_url}
-                      alt=""
-                      className="map-pin-photo"
-                    />
-                  ) : (
-                    <span
-                      className="map-pin-dot"
-                      style={{ background: path.color }}
-                    />
-                  )}
-                </button>
-              </Marker>
-            )),
-          )}
+                <span className="map-pin-head" />
+                <span className="map-pin-point" />
+              </button>
+            </Marker>
+          ))}
 
         {showCrossings &&
           crossings.map((x, idx) => (
@@ -381,7 +412,7 @@ export function PathMap({
             </div>
           </Popup>
         )}
-      </Map>
+      </MapboxMap>
     </div>
   );
 }

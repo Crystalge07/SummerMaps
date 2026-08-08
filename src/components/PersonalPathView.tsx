@@ -84,8 +84,8 @@ export function PersonalPathView() {
           ))}
         </div>
 
-        <a className="btn primary" href="/check-in">
-          Add a find
+        <a className="btn primary" href="/capture">
+          Capture
         </a>
       </div>
       <PathMap
