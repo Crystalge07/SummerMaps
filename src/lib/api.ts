@@ -281,6 +281,27 @@ export async function getMyProfile(deviceId: string): Promise<DeviceProfile> {
   return ensureDeviceProfile(deviceId);
 }
 
+export async function removeFriend(
+  myDeviceId: string,
+  friendDeviceId: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    await localStore.removeFriendship(myDeviceId, friendDeviceId);
+    return;
+  }
+  const [a, b] =
+    myDeviceId < friendDeviceId
+      ? [myDeviceId, friendDeviceId]
+      : [friendDeviceId, myDeviceId];
+  const { error } = await supabase
+    .from("friendships")
+    .delete()
+    .eq("a_device_id", a)
+    .eq("b_device_id", b);
+  if (error) throw error;
+}
+
 export async function addFriend(
   myDeviceId: string,
   friendCode: string,

@@ -7,6 +7,7 @@ import {
   ensureDeviceProfile,
   getFriendDeviceIds,
   getProfileByDeviceId,
+  removeFriend,
   searchProfiles,
 } from "@/lib/api";
 import { useAuthOptional } from "@/lib/auth";
@@ -33,6 +34,8 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialCode.length === 6) {
@@ -202,6 +205,24 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     }
   }
 
+  async function onConfirmRemove(friend: DeviceProfile) {
+    const myId = auth?.user?.id || getDeviceId();
+    if (!myId) return;
+    setRemovingId(friend.device_id);
+    setError("");
+    try {
+      await removeFriend(myId, friend.device_id);
+      setFriends((prev) => prev.filter((f) => f.device_id !== friend.device_id));
+      setConfirmRemoveId(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not remove friend.",
+      );
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
   return (
     <div className="friends-page">
       {me && (
@@ -328,24 +349,70 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
           </div>
         ) : (
           <ul className="friends-contact-list">
-            {friends.map((f) => (
-              <li key={f.device_id}>
-                <a className="friends-contact-row" href="/map?layer=friends">
-                  <span
-                    className="friends-color-dot"
-                    style={{ background: colorForDevice(f.device_id) }}
-                  />
-                  <span className="friends-contact-name">
-                    {f.display_name?.trim()
-                      ? `@${f.display_name.trim()}`
-                      : f.code || friendCodeFromDeviceId(f.device_id)}
-                  </span>
-                  <span className="friends-contact-go" aria-hidden>
-                    →
-                  </span>
-                </a>
-              </li>
-            ))}
+            {friends.map((f) => {
+              const label = f.display_name?.trim()
+                ? `@${f.display_name.trim()}`
+                : f.code || friendCodeFromDeviceId(f.device_id);
+              const confirming = confirmRemoveId === f.device_id;
+              const busy = removingId === f.device_id;
+              return (
+                <li key={f.device_id}>
+                  {confirming ? (
+                    <div className="friends-contact-confirm">
+                      <span>
+                        Remove {label} from your circle?
+                      </span>
+                      <div className="actions">
+                        <button
+                          type="button"
+                          className="btn danger"
+                          disabled={busy}
+                          onClick={() => void onConfirmRemove(f)}
+                        >
+                          {busy ? "Removing…" : "Confirm"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          disabled={busy}
+                          onClick={() => setConfirmRemoveId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="friends-contact-row">
+                      <a
+                        className="friends-contact-main"
+                        href="/map?layer=friends"
+                      >
+                        <span
+                          className="friends-color-dot"
+                          style={{ background: colorForDevice(f.device_id) }}
+                        />
+                        <span className="friends-contact-name">{label}</span>
+                      </a>
+                      <button
+                        type="button"
+                        className="friends-contact-remove"
+                        aria-label={`Remove ${label}`}
+                        onClick={() => setConfirmRemoveId(f.device_id)}
+                      >
+                        ×
+                      </button>
+                      <a
+                        className="friends-contact-go"
+                        href="/map?layer=friends"
+                        aria-label={`Open map with ${label}`}
+                      >
+                        →
+                      </a>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

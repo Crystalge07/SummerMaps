@@ -205,8 +205,14 @@ export function AuthGate() {
         await claimUsername(username);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        if (msg === "username_taken" || msg.includes("username_taken")) {
-          setUsernameError("That username is taken. Try another.");
+        if (
+          msg === "username_taken" ||
+          msg.includes("username_taken") ||
+          msg.includes("23505")
+        ) {
+          setUsernameError(
+            "That username is already taken, try another one",
+          );
           setAvailability("taken");
         } else if (msg === "username_invalid") {
           setUsernameError(

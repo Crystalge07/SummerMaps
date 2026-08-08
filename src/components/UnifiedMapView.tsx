@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   checkinsAsUnlinkedPins,
+  deleteCheckIn,
   ensureDeviceProfile,
   getAllCheckins,
   getFriendDeviceIds,
@@ -189,6 +190,33 @@ export function UnifiedMapView() {
     setPanelOpen(true);
   }
 
+  async function handleDeleteOwnCheckIn(checkIn: CheckIn) {
+    const me = getDeviceId();
+    if (!me || checkIn.device_id !== me) {
+      throw new Error("You can only remove your own spots.");
+    }
+    await deleteCheckIn(checkIn.id, me);
+    setMyPath((prev) =>
+      prev
+        ? {
+            ...prev,
+            checkins: prev.checkins.filter((c) => c.id !== checkIn.id),
+          }
+        : null,
+    );
+    setCityPins((prev) =>
+      prev
+        .map((pin) => ({
+          ...pin,
+          checkins: pin.checkins.filter((c) => c.id !== checkIn.id),
+        }))
+        .filter((pin) => pin.checkins.length > 0),
+    );
+    setSelected((prev) => (prev?.id === checkIn.id ? null : prev));
+  }
+
+  const myDeviceId = pathToggles.mine ? getDeviceId() || undefined : undefined;
+
   return (
     <div className="unified-map">
       <aside
@@ -263,6 +291,10 @@ export function UnifiedMapView() {
         viewMode={pathsOn ? "lines" : viewMode}
         focus={pathsOn ? "all" : "checkins"}
         initialCenter={initialCenter}
+        ownDeviceId={myDeviceId}
+        onDeleteCheckIn={
+          myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
+        }
       />
 
       {selected && (
