@@ -70,7 +70,7 @@ export function lastRowSpans(itemCount: number, cols: number): number[] {
 }
 
 /**
- * Group personal finds into mosaic days.
+ * Group all city finds into shared mosaic days (everyone, not per-user).
  * Today is included while live (before cutoff) and after lock.
  * Only photos before the day's cutoff hour are eligible.
  */
