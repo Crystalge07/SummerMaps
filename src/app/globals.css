@@ -115,6 +115,31 @@ a {
   width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 1.5rem 0 3rem;
+  position: relative;
+}
+
+.has-atmosphere {
+  position: relative;
+}
+
+.illus-strip {
+  height: 72px;
+  margin: -1.5rem 0 1.25rem;
+  border-radius: 0 0 18px 18px;
+  background:
+    linear-gradient(180deg, rgba(243, 246, 248, 0.2), rgba(243, 246, 248, 0.85)),
+    url("data:image/svg+xml,%3Csvg width='160' height='160' viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 120 C40 40, 80 140, 150 30' fill='none' stroke='%231F8A70' stroke-opacity='0.22' stroke-width='3'/%3E%3Cpath d='M0 80 C50 20, 90 150, 160 60' fill='none' stroke='%23E85D4C' stroke-opacity='0.2' stroke-width='2.5'/%3E%3C/svg%3E");
+  background-size: auto, 180px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.map-sidebar .illus-strip {
+  margin: -1.25rem -1.25rem 0.75rem;
+}
+
+.dashboard .illus-strip {
+  margin: 0 0 0.25rem;
 }
 
 .hero {
@@ -452,6 +477,69 @@ a {
   object-fit: cover;
 }
 
+.map-pin {
+  position: relative;
+  width: 40px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 6px 10px rgba(19, 33, 43, 0.28));
+}
+
+.map-pin-illus {
+  display: block;
+  width: 40px;
+  height: 50px;
+}
+
+.map-pin-photo,
+.map-pin-dot {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  object-fit: cover;
+  border: 1.5px solid #fff;
+  box-sizing: border-box;
+}
+
+.view-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--line);
+}
+
+.view-toggle .toggle {
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.view-toggle .toggle.active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.filter-note {
+  margin-top: -0.35rem;
+  color: var(--teal);
+  font-weight: 600;
+}
+
 .crossing-dot {
   width: 14px;
   height: 14px;
@@ -459,6 +547,12 @@ a {
   background: var(--amber);
   box-shadow: 0 0 0 4px rgba(244, 162, 97, 0.35);
   animation: pulse 1.6s ease-in-out infinite;
+}
+
+.crossing-dot-focus {
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 0 0 6px rgba(244, 162, 97, 0.45);
 }
 
 @keyframes pulse {
@@ -508,23 +602,70 @@ a {
   gap: 0.75rem;
 }
 
-.stat-row article {
+.stat-row article,
+.stat-card {
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(201, 213, 221, 0.8);
   border-radius: 18px;
   padding: 1rem;
   display: grid;
   gap: 0.25rem;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: start;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.stat-row strong {
+.stat-card {
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+.stat-card:hover,
+.stat-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--teal);
+  box-shadow: 0 10px 24px rgba(19, 33, 43, 0.1);
+  outline: none;
+}
+
+.stat-card:active {
+  transform: translateY(0);
+  border-color: var(--coral);
+}
+
+.stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.stat-row strong,
+.stat-card strong {
   font-family: var(--font-display);
   font-size: 1.8rem;
+  line-height: 1;
+  grid-column: 2;
+}
+
+.stat-card strong.stat-text {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .stat-row span,
+.stat-card span,
 .chart-panel h2 {
   color: var(--ink-soft);
+}
+
+.stat-card span {
+  grid-column: 2;
+  font-size: 0.9rem;
 }
 
 .chart-panel {
@@ -539,9 +680,42 @@ a {
   font-size: 1rem;
 }
 
+.chart-hint {
+  margin: -0.35rem 0 0.75rem;
+}
+
 .chart-wrap {
   width: 100%;
   min-height: 280px;
+}
+
+.busiest-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.busiest-copy h2 {
+  margin-bottom: 0.5rem;
+}
+
+.busiest-count {
+  margin: 0 0 0.9rem;
+  color: var(--ink-soft);
+}
+
+.busiest-count strong {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--ink);
+  margin-right: 0.25rem;
+}
+
+.busiest-pin {
+  width: 72px;
+  height: 90px;
+  filter: drop-shadow(0 10px 18px rgba(19, 33, 43, 0.18));
 }
 
 .dense-list {
