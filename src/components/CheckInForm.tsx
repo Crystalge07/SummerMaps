@@ -269,11 +269,7 @@ export function CheckInForm() {
           Capture <em>{prompt}</em>
         </h1>
         <p className="lede">
-          Spot it in the world, take one photo — we grab your place and pin it
-          to the map. Opt-in only, whenever you notice it.
-        </p>
-        <p className="meta">
-          Opens your camera for one photo — no uploads from your library.
+          Capture the little joys in life, share it with the world
         </p>
       </header>
 
@@ -337,7 +333,7 @@ export function CheckInForm() {
           >
             <CameraIcon />
             <span>
-              {startingCamera ? "Opening camera…" : "tap to spot something"}
+                {startingCamera ? "Opening camera…" : "Capture a moment now"}
             </span>
           </button>
         )}
@@ -345,11 +341,11 @@ export function CheckInForm() {
 
       {status !== "done" && (
         <label className="field checkin-caption">
-          <span className="sr-only">Caption (optional)</span>
+          <span className="sr-only">Notes</span>
           <input
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            placeholder="where did you spot it?"
+            placeholder="Notes"
             maxLength={120}
             disabled={busy}
           />

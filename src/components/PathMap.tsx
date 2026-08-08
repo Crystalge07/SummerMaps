@@ -387,7 +387,7 @@ export function PathMap({
             latitude={displayCoords.get(popup.id)?.lat ?? popup.lat}
             longitude={displayCoords.get(popup.id)?.lng ?? popup.lng}
             anchor="bottom"
-            offset={36}
+            offset={28}
             closeOnClick={false}
             onClose={() => {
               setPopup(null);
