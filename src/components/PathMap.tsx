@@ -16,6 +16,7 @@ import {
   displayCoordsByCheckInId,
 } from "@/lib/pathGeometry";
 import type { CheckIn, PathSeries } from "@/lib/types";
+import { PhotoPin } from "./PhotoPin";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 export type MapViewMode = "lines" | "heatmap";
@@ -130,6 +131,7 @@ export function PathMap({
       color: string;
       lat: number;
       lng: number;
+      isCityPin: boolean;
     }[] = [];
     const ordered = [
       ...visiblePaths.filter((p) => p.connect !== false),
@@ -148,6 +150,7 @@ export function PathMap({
           color: path.color,
           lat: pos.lat,
           lng: pos.lng,
+          isCityPin: path.connect === false,
         });
       }
     }
@@ -312,43 +315,58 @@ export function PathMap({
           })}
 
         {showMarkers &&
-          uniqueMarkers.map(({ checkIn: c, color, lat, lng }) => (
-            <Marker
-              key={c.id}
-              latitude={lat}
-              longitude={lng}
-              anchor="bottom"
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                if (
-                  ownDeviceId &&
-                  c.device_id === ownDeviceId &&
-                  onDeleteCheckIn
-                ) {
-                  setPopup(c);
-                  setConfirmDelete(false);
-                  setDeleteError("");
-                  return;
-                }
-                onSelectCheckIn?.(c);
-              }}
-            >
-              <button
-                type="button"
-                className="map-pin"
-                style={{ ["--pin-accent" as string]: color }}
-                title={format(new Date(c.created_at), "h:mm a")}
-                aria-label={
-                  anonymizePhotos
-                    ? `Find at ${format(new Date(c.created_at), "h:mm a")}`
-                    : `Open find from ${format(new Date(c.created_at), "h:mm a")}`
-                }
+          uniqueMarkers.map(({ checkIn: c, color, lat, lng, isCityPin }) => {
+            const isOwn = Boolean(ownDeviceId && c.device_id === ownDeviceId);
+            const size = isCityPin ? 32 : isOwn ? 48 : 40;
+            return (
+              <Marker
+                key={c.id}
+                latitude={lat}
+                longitude={lng}
+                anchor="center"
+                onClick={(e) => {
+                  e.originalEvent.stopPropagation();
+                  if (
+                    ownDeviceId &&
+                    c.device_id === ownDeviceId &&
+                    onDeleteCheckIn
+                  ) {
+                    setPopup(c);
+                    setConfirmDelete(false);
+                    setDeleteError("");
+                    return;
+                  }
+                  onSelectCheckIn?.(c);
+                }}
               >
-                <span className="map-pin-head" />
-                <span className="map-pin-point" />
-              </button>
-            </Marker>
-          ))}
+                <button
+                  type="button"
+                  className="map-pin"
+                  style={{ width: size, height: size }}
+                  title={format(new Date(c.created_at), "h:mm a")}
+                  aria-label={
+                    anonymizePhotos
+                      ? `Find at ${format(new Date(c.created_at), "h:mm a")}`
+                      : `Open find from ${format(new Date(c.created_at), "h:mm a")}`
+                  }
+                >
+                  <PhotoPin
+                    photoUrl={c.photo_url}
+                    size={size}
+                    isOwn={isOwn}
+                    className={isCityPin ? "city" : undefined}
+                  />
+                  {!isCityPin && (
+                    <span
+                      className="map-pin-dot"
+                      style={{ background: color }}
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              </Marker>
+            );
+          })}
 
         {showCrossings &&
           crossings.map((x, idx) => (

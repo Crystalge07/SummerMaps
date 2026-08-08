@@ -303,29 +303,32 @@ export function AuthGate() {
   }
 
   // Signed in with username
+  const initial = profile?.username?.[0]?.toUpperCase() ?? "?";
   return (
     <section className="panel account-panel" aria-labelledby="account-title">
-      <p className="panel-kicker">account</p>
-      <h2 id="account-title">Signed in</h2>
-      <p className="lede">
+      <h2 id="account-title" className="sr-only">
+        Account
+      </h2>
+      <div className="profile-avatar" aria-hidden="true">
+        {initial}
+      </div>
+      {profile?.username && (
+        <p className="profile-username">@{profile.username}</p>
+      )}
+      <p className="lede" style={{ textAlign: "center" }}>
         {profile?.username ? (
-          <>
-            Friends see you as <strong>@{profile.username}</strong>
-            {user?.email ? (
-              <>
-                {" "}
-                · {user.email}
-              </>
-            ) : null}
-            .
-          </>
+          user?.email ? (
+            `synced · ${user.email}`
+          ) : (
+            "synced across devices"
+          )
         ) : (
           "Your session is active on this device."
         )}
       </p>
       <button
         type="button"
-        className="btn"
+        className="profile-signout"
         disabled={busy}
         onClick={() => {
           setBusy(true);
