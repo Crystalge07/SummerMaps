@@ -598,6 +598,23 @@ a {
   justify-self: end;
 }
 
+.camera-post {
+  justify-self: end;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sage);
+  color: #fdfaf4;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.65rem 1.25rem;
+  cursor: pointer;
+}
+
+.camera-post:active {
+  transform: scale(0.97);
+}
+
 .camera-processing {
   position: absolute;
   inset: 0;
