@@ -63,6 +63,55 @@ export async function createCheckIn(
   return data as CheckIn;
 }
 
+/** Extract storage object path from a public URL or local `#path` data URL. */
+export function storagePathFromPhotoUrl(photoUrl: string): string | null {
+  if (!photoUrl) return null;
+  const hashIdx = photoUrl.indexOf("#");
+  if (photoUrl.startsWith("data:") && hashIdx >= 0) {
+    return photoUrl.slice(hashIdx + 1) || null;
+  }
+  const marker = "/object/public/checkins/";
+  const idx = photoUrl.indexOf(marker);
+  if (idx >= 0) {
+    return decodeURIComponent(photoUrl.slice(idx + marker.length).split("?")[0]);
+  }
+  const match = photoUrl.match(/\/checkins\/(.+?)(?:\?|$)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * Delete own check-in. Requires matching device_id (ownership check).
+ * Also removes the photo from the checkins storage bucket when possible.
+ */
+export async function deleteCheckIn(
+  checkInId: string,
+  deviceId: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.deleteCheckIn(checkInId, deviceId);
+
+  const { data: row, error: fetchError } = await supabase
+    .from("checkins")
+    .select("id, device_id, photo_url")
+    .eq("id", checkInId)
+    .eq("device_id", deviceId)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+  if (!row) throw new Error("Check-in not found or not yours.");
+
+  const { error: deleteError } = await supabase
+    .from("checkins")
+    .delete()
+    .eq("id", checkInId)
+    .eq("device_id", deviceId);
+  if (deleteError) throw deleteError;
+
+  const path = storagePathFromPhotoUrl(row.photo_url);
+  if (path && !path.startsWith("data:")) {
+    await supabase.storage.from("checkins").remove([path]);
+  }
+}
+
 export async function getTodayCheckinsForDevice(
   deviceId: string,
 ): Promise<CheckIn[]> {
@@ -196,6 +245,11 @@ export async function addFriend(
   if (!profile) throw new Error("No one found with that friend code.");
   if (profile.device_id === myDeviceId) {
     throw new Error("You can't friend yourself.");
+  }
+
+  const already = await getFriendDeviceIds(myDeviceId);
+  if (already.includes(profile.device_id)) {
+    throw new Error("You're already connected.");
   }
 
   const supabase = getSupabase();

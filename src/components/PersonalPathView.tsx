@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getTodayCheckinsForDevice } from "@/lib/api";
+import { deleteCheckIn, getTodayCheckinsForDevice } from "@/lib/api";
 import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
 import { getTodaysPrompt } from "@/lib/prompts";
 import type { CheckIn, PathSeries } from "@/lib/types";
-import { CheckInDetail } from "./CheckInDetail";
+import { CheckInCard } from "./CheckInCard";
 import { Legend } from "./Legend";
 import { PathMap } from "./PathMap";
 import { PathReplayControls } from "./PathReplayControls";
 
 export function PersonalPathView() {
+  const [deviceId, setDeviceId] = useState("");
   const [paths, setPaths] = useState<PathSeries[]>([]);
   const [selected, setSelected] = useState<CheckIn | null>(null);
   const [progress, setProgress] = useState(1);
@@ -19,13 +20,14 @@ export function PersonalPathView() {
   const prompt = getTodaysPrompt();
 
   useEffect(() => {
-    const deviceId = getDeviceId();
-    getTodayCheckinsForDevice(deviceId)
+    const id = getDeviceId();
+    setDeviceId(id);
+    getTodayCheckinsForDevice(id)
       .then((rows) => {
         setPaths([
           {
-            deviceId,
-            color: colorForDevice(deviceId),
+            deviceId: id,
+            color: colorForDevice(id),
             label: "Your day",
             checkins: rows,
             connect: true,
@@ -34,6 +36,18 @@ export function PersonalPathView() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  function removeCheckIn(id: string) {
+    setPaths((prev) =>
+      prev.map((p) => ({
+        ...p,
+        checkins: p.checkins.filter((c) => c.id !== id),
+      })),
+    );
+    setSelected((cur) => (cur?.id === id ? null : cur));
+  }
+
+  const checkins = paths[0]?.checkins ?? [];
 
   return (
     <div className="map-page">
@@ -50,10 +64,26 @@ export function PersonalPathView() {
           <Legend paths={paths} />
         )}
         <PathReplayControls
-          enabled={(paths[0]?.checkins.length ?? 0) > 1}
+          enabled={checkins.length > 1}
           onProgress={setProgress}
         />
-        <CheckInDetail checkIn={selected} />
+
+        <div className="checkin-card-list">
+          {checkins.length === 0 && !loading && (
+            <p className="meta">No finds yet today.</p>
+          )}
+          {checkins.map((c) => (
+            <CheckInCard
+              key={c.id}
+              checkIn={c}
+              canDelete={Boolean(deviceId) && c.device_id === deviceId}
+              selected={selected?.id === c.id}
+              onSelect={setSelected}
+              onDeleted={removeCheckIn}
+            />
+          ))}
+        </div>
+
         <a className="btn primary" href="/check-in">
           Add a find
         </a>
@@ -62,6 +92,11 @@ export function PersonalPathView() {
         paths={paths}
         replayProgress={progress}
         onSelectCheckIn={setSelected}
+        ownDeviceId={deviceId || undefined}
+        onDeleteCheckIn={async (c) => {
+          await deleteCheckIn(c.id, c.device_id);
+          removeCheckIn(c.id);
+        }}
       />
     </div>
   );

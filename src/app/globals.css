@@ -538,40 +538,355 @@ a {
   max-width: 420px;
 }
 
-.friend-code-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 4.5rem;
-  padding: 0.9rem 1rem;
-  border-radius: 22px 18px 20px 16px;
-  background: var(--leaf-deep);
-  color: #fff8e8;
-  font-family: var(--font-display), "freight-big-pro", "Newsreader", Georgia,
-    serif;
-  font-size: clamp(2rem, 8vw, 2.75rem);
+/* ——— Friends social page ——— */
+.friends-scroll {
+  height: var(--view-h);
+  overflow: auto;
+  width: 100%;
+  padding: 1.25rem 1rem 2.75rem;
+  box-sizing: border-box;
+}
+
+.friends-page {
+  width: min(440px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.friends-hero-card {
+  background: #fffcf6;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.35rem 1.2rem 1.15rem;
+  box-shadow: 0 10px 28px rgba(58, 50, 40, 0.08);
+  display: grid;
+  gap: 0.85rem;
+  text-align: center;
+}
+
+.friends-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.friends-code-display {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: clamp(2.4rem, 10vw, 3.1rem);
   font-weight: 700;
   letter-spacing: 0.22em;
   text-indent: 0.22em;
-  line-height: 1;
-  box-shadow: var(--shadow);
+  line-height: 1.1;
+  color: var(--ink);
+  padding: 0.55rem 0.25rem;
 }
 
-.share-link-field .share-link-row {
+.friends-hero-actions {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem;
-  align-items: center;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
 }
 
-.share-link-field input {
+.friends-hero-actions .btn.primary {
+  background: var(--blush);
+  border-color: color-mix(in srgb, var(--blush) 70%, var(--ink));
+  color: #3a3228;
+}
+
+.friends-hero-actions .btn.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--blush) 85%, var(--ink));
+}
+
+.friends-link-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.45rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.friends-link-copy em {
+  font-style: normal;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.friends-link-copy strong {
+  color: var(--sage-deep);
+}
+
+.friends-section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.friends-section h2 {
+  margin: 0;
+  font-family: var(--font-display), "Caveat", cursive;
+  font-size: 1.55rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.friends-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sky) 55%, #fff);
+  color: var(--ink);
+  font-family: var(--font-body), "Nunito", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.friends-add-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.friends-add-form input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+  font: inherit;
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: #fffcf6;
+}
+
+.friends-add-btn {
+  width: 100%;
+  background: var(--blush);
+  border-color: color-mix(in srgb, var(--blush) 70%, var(--ink));
+  color: #3a3228;
+}
+
+.friends-add-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--blush) 85%, var(--ink));
+}
+
+.friends-empty {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, #fff 40%, var(--paper));
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+}
+
+.friends-empty p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.friends-empty .meta {
+  margin: 0;
+}
+
+.friends-contact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.friends-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.25rem;
+  border-bottom: 1px solid var(--line);
+  min-height: 3.25rem;
+}
+
+.friends-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.friends-contact-name {
+  flex: 1 1 auto;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.friends-contact-go {
+  color: var(--ink-soft);
+  font-size: 1.1rem;
+}
+
+.friends-map-cta {
+  width: 100%;
+  background: var(--blush);
+  border-color: color-mix(in srgb, var(--blush) 70%, var(--ink));
+  color: #3a3228;
+}
+
+/* ——— Check-in cards (My Path) ——— */
+.checkin-card-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.checkin-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 0.65rem;
+  padding: 0.65rem;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 0.75rem 0.9rem;
-  font: inherit;
-  font-size: 0.85rem;
-  background: white;
+  background: #fffcf6;
+  cursor: pointer;
+}
+
+.checkin-card.selected {
+  border-color: var(--sage-deep);
+  box-shadow: inset 0 0 0 1px var(--sage);
+}
+
+.checkin-card-photo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.checkin-card-body {
   min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+  align-content: start;
+  padding-right: 1.6rem;
+}
+
+.checkin-card-body p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.checkin-card-delete {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.checkin-card-delete:hover {
+  background: color-mix(in srgb, var(--blush) 35%, transparent);
+  color: var(--ink);
+}
+
+.checkin-card-confirm {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.checkin-card-confirm .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.checkin-card-confirm .btn {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.82rem;
+  min-height: 0;
+}
+
+.map-pin {
+  position: relative;
+  width: 40px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 4px 8px rgba(58, 50, 40, 0.25));
+}
+
+.map-pin-illus {
+  display: block;
+  width: 40px;
+  height: 50px;
+}
+
+.map-pin-photo,
+.map-pin-dot {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  object-fit: cover;
+  border: 1.5px solid #fff;
+  box-sizing: border-box;
+}
+
+.checkin-popup-inner {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 160px;
+  max-width: 220px;
+}
+
+.checkin-popup-inner img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.checkin-popup-inner p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.checkin-popup-inner .btn {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.82rem;
+  min-height: 0;
 }
 
 .code {

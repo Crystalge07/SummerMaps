@@ -5,9 +5,9 @@ import {
   addFriend,
   ensureDeviceProfile,
   getFriendDeviceIds,
-  getProfileByCode,
   getProfileByDevice,
 } from "@/lib/api";
+import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
 import type { DeviceProfile } from "@/lib/types";
 import { DemoSeedButton } from "./DemoSeedButton";
@@ -17,12 +17,14 @@ const SHARE_ORIGIN = "https://summer-maps.vercel.app";
 export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   const [me, setMe] = useState<DeviceProfile | null>(null);
   const [friends, setFriends] = useState<DeviceProfile[]>([]);
-  const [code, setCode] = useState(initialCode);
-  const [message, setMessage] = useState("");
+  const [code, setCode] = useState(initialCode.slice(0, 6));
+  const [adding, setAdding] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
 
   useEffect(() => {
-    if (initialCode) setCode(initialCode);
+    if (initialCode) setCode(initialCode.slice(0, 6).toUpperCase());
   }, [initialCode]);
 
   const shareUrl = useMemo(
@@ -63,7 +65,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
 
   async function onShare() {
     if (!me) return;
-    const text = `Join me on Pathline! Add my code: ${me.code} at summer-maps.vercel.app/friends`;
+    const text = `Find me on Pathline — my code is ${me.code}. Add me at summer-maps.vercel.app/friends?add=${me.code}`;
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({
@@ -76,107 +78,162 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
         if (err instanceof DOMException && err.name === "AbortError") return;
       }
     }
-    await copyText(me.code, "code");
+    await copyText(shareUrl, "link");
   }
 
   async function onAddFriend(e: React.FormEvent) {
     e.preventDefault();
+    setSuccess("");
+    setError("");
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) return;
+
+    setAdding(true);
     try {
-      await addFriend(getDeviceId(), code.trim());
-      const profile = await getProfileByCode(code.trim());
-      setMessage(
-        profile
-          ? `Added friend ${profile.code}. You can see each other's paths.`
-          : "Friend added.",
-      );
+      await addFriend(getDeviceId(), trimmed);
+      setSuccess("Friend added! Open the map to see their path.");
       setCode("");
       await refresh();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not add friend.");
+      const msg = err instanceof Error ? err.message : "Could not add friend.";
+      if (msg.includes("No one found") || msg.includes("friend code")) {
+        setError(
+          "That code doesn't match anyone. Double-check and try again.",
+        );
+      } else if (msg.includes("already connected")) {
+        setError("You're already connected.");
+      } else if (msg.includes("yourself")) {
+        setError("That's your own code.");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setAdding(false);
     }
   }
 
   return (
-    <>
-      <aside className="split-side">
-        <div className="panel-kicker">friends</div>
-        <h1>Friends</h1>
-        <p className="lede">
-          Share your code with people you trust. Friends see each other&apos;s
-          day as a connected path — strangers on the city map only see loose
-          finds.
-        </p>
-        {friends.length > 0 && (
-          <ul className="fallback-paths friends-list">
+    <div className="friends-page">
+      {me && (
+        <section className="friends-hero-card">
+          <p className="friends-label">Your friend code</p>
+          <div
+            className="friends-code-display"
+            aria-label={`Friend code ${me.code}`}
+          >
+            {me.code}
+          </div>
+          <div className="friends-hero-actions">
+            <button type="button" className="btn primary" onClick={onCopyCode}>
+              {copied === "code" ? "Copied ✓" : "Copy code"}
+            </button>
+            <button type="button" className="btn ghost" onClick={onShare}>
+              Share
+            </button>
+          </div>
+          <button
+            type="button"
+            className="friends-link-copy"
+            onClick={() => copyText(shareUrl, "link")}
+          >
+            <span>Or share this link:</span>
+            <em>{shareUrl.replace(/^https?:\/\//, "")}</em>
+            <CopyIcon />
+            {copied === "link" ? <strong>Copied ✓</strong> : null}
+          </button>
+        </section>
+      )}
+
+      <section className="friends-section">
+        <h2>Add a friend</h2>
+        <form className="friends-add-form" onSubmit={onAddFriend}>
+          <input
+            value={code}
+            onChange={(e) =>
+              setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))
+            }
+            placeholder="Enter their code"
+            maxLength={6}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-label="Friend code"
+          />
+          <button
+            type="submit"
+            className="btn primary friends-add-btn"
+            disabled={!code.trim() || adding}
+          >
+            {adding ? "Adding..." : "Add"}
+          </button>
+        </form>
+        {success && <p className="status">{success}</p>}
+        {error && <p className="status error">{error}</p>}
+      </section>
+
+      <section className="friends-section">
+        <h2>
+          Your circle <span className="friends-count">{friends.length}</span>
+        </h2>
+
+        {friends.length === 0 ? (
+          <div className="friends-empty">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/path-mark.svg" alt="" width={56} height={56} />
+            <p>No one in your circle yet.</p>
+            <p className="meta">Share your code to get started.</p>
+          </div>
+        ) : (
+          <ul className="friends-contact-list">
             {friends.map((f) => (
               <li key={f.device_id}>
-                <strong>{f.code}</strong>
-                {f.display_name ? ` · ${f.display_name}` : ""}
+                <a className="friends-contact-row" href="/friends/map">
+                  <span
+                    className="friends-color-dot"
+                    style={{ background: colorForDevice(f.device_id) }}
+                  />
+                  <span className="friends-contact-name">
+                    {f.display_name?.trim() || f.code}
+                  </span>
+                  <span className="friends-contact-go" aria-hidden>
+                    →
+                  </span>
+                </a>
               </li>
             ))}
           </ul>
         )}
-      </aside>
-
-      <section className="split-main friends-actions">
-        {me && (
-          <div className="group-active">
-            <p className="meta">Your friend code</p>
-            <div
-              className="friend-code-box"
-              aria-label={`Friend code ${me.code}`}
-            >
-              {me.code}
-            </div>
-            <div className="actions">
-              <button type="button" className="btn primary" onClick={onCopyCode}>
-                {copied === "code" ? "Copied!" : "Copy code"}
-              </button>
-              <button type="button" className="btn ghost" onClick={onShare}>
-                Share
-              </button>
-            </div>
-            <label className="field share-link-field">
-              <span>Share link</span>
-              <div className="share-link-row">
-                <input
-                  readOnly
-                  value={shareUrl}
-                  onFocus={(e) => e.target.select()}
-                />
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => copyText(shareUrl, "link")}
-                >
-                  {copied === "link" ? "Copied!" : "Copy link"}
-                </button>
-              </div>
-            </label>
-            <a className="btn primary" href="/friends/map">
-              Open friends map
-            </a>
-          </div>
-        )}
-
-        <form className="group-forms" onSubmit={onAddFriend}>
-          <label className="field">
-            <span>Add a friend by code</span>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="ABC123"
-              maxLength={8}
-            />
-          </label>
-          <button type="submit" className="btn primary" disabled={!code.trim()}>
-            Add friend
-          </button>
-        </form>
-
-        {message && <p className="status">{message}</p>}
-        <DemoSeedButton onLoaded={refresh} />
       </section>
-    </>
+
+      {friends.length > 0 && (
+        <a className="btn primary friends-map-cta" href="/friends/map">
+          Open friends map
+        </a>
+      )}
+
+      <DemoSeedButton onLoaded={refresh} />
+    </div>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="9"
+        y="9"
+        width="11"
+        height="11"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path
+        d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
