@@ -6,13 +6,17 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
-  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { getAllCheckins, getTodayCityCheckins } from "@/lib/api";
+import {
+  getAllCheckins,
+  getProfileByDeviceId,
+  getTodayCityCheckins,
+} from "@/lib/api";
+import { friendCodeFromDeviceId } from "@/lib/friendCode";
 import {
   activeSince,
   dailyCounts,
@@ -26,10 +30,40 @@ import { PathMap } from "./PathMap";
 const REFRESH_MS = 25_000;
 const LIVE_WINDOW_MS = 30 * 60 * 1000;
 
+const CHART_TICK = { fill: "var(--color-text-muted)", fontSize: 11 };
+const CHART_AXIS = { stroke: "var(--color-green-secondary)" };
+const CHART_TOOLTIP = {
+  background: "var(--color-bg-card)",
+  border: "1px solid var(--color-green-secondary)",
+  borderRadius: "8px",
+  color: "var(--color-text)",
+};
+
 export function InsightsView() {
   const [today, setToday] = useState<CheckIn[]>([]);
   const [all, setAll] = useState<CheckIn[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [selected, setSelected] = useState<CheckIn | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState("");
+
+  async function openSpot(checkIn: CheckIn) {
+    setSelected(checkIn);
+    setSelectedLabel("");
+    try {
+      const profile = await getProfileByDeviceId(checkIn.device_id);
+      const name = profile?.display_name?.trim();
+      setSelectedLabel(
+        name || profile?.code || friendCodeFromDeviceId(checkIn.device_id),
+      );
+    } catch {
+      setSelectedLabel(friendCodeFromDeviceId(checkIn.device_id));
+    }
+  }
+
+  function closeSpot() {
+    setSelected(null);
+    setSelectedLabel("");
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -61,19 +95,19 @@ export function InsightsView() {
   const byHour = useMemo(() => hourlyDistribution(today), [today]);
   const growth = useMemo(() => dailyCounts(all, 14), [all]);
   const densest = useMemo(() => densestCells(today, 5), [today]);
-  const recent = useMemo(
-    () =>
-      [...all]
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .slice(0, 10),
-    [all],
-  );
+  // Prefer `all` (select *) so location_name is present without changing queries.
+  const todaySpots = useMemo(() => {
+    const ids = new Set(today.map((c) => c.id));
+    return [...all]
+      .filter((c) => ids.has(c.id) && Boolean(c.photo_url?.trim()))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }, [all, today]);
 
   const cityPaths: PathSeries[] = useMemo(
     () => [
       {
         deviceId: "city-insights",
-        color: "#1F8A70",
+        color: "#4a7c59",
         label: "City",
         checkins: today,
         connect: false,
@@ -114,30 +148,26 @@ export function InsightsView() {
               <span>contributors</span>
             </article>
           </div>
-          <ul className="live-feed">
-            {recent.length === 0 && (
-              <li className="meta">No captures yet — add one from Home.</li>
-            )}
-            {recent.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/map?layer=city&view=lines&lat=${c.lat}&lng=${c.lng}`}
-                  className="live-feed-row"
+
+          <h3 className="spots-heading">Today&apos;s spots</h3>
+          {todaySpots.length === 0 ? (
+            <p className="spots-empty">No spots yet today — be the first</p>
+          ) : (
+            <div className="spots-grid">
+              {todaySpots.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="spots-grid-cell"
+                  onClick={() => void openSpot(c)}
+                  aria-label={`Open spot from ${format(new Date(c.created_at), "h:mm a")}`}
                 >
-                  <span className="live-feed-time">
-                    {format(new Date(c.created_at), "h:mm a")}
-                  </span>
-                  <span className="live-feed-body">
-                    {c.caption?.trim()
-                      ? c.caption.trim()
-                      : c.prompt
-                        ? `Spotted “${c.prompt}”`
-                        : "New capture"}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={c.photo_url} alt="" />
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="chart-panel">
@@ -156,23 +186,31 @@ export function InsightsView() {
           <p className="meta chart-hint">Peak hours</p>
           <div className="chart-wrap chart-wrap-compact">
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={byHour}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#d5dde3" />
+              <BarChart data={byHour} style={{ background: "transparent" }}>
                 <XAxis
                   dataKey="hour"
-                  tick={{ fill: "#405463", fontSize: 11 }}
+                  tick={CHART_TICK}
+                  axisLine={CHART_AXIS}
+                  tickLine={false}
                   interval={1}
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fill: "#405463", fontSize: 12 }}
+                  tick={{ ...CHART_TICK, fontSize: 12 }}
+                  axisLine={CHART_AXIS}
+                  tickLine={false}
                   domain={[0, "auto"]}
                 />
                 <Tooltip
                   formatter={(value) => [value ?? 0, "captures"]}
                   labelFormatter={(hour) => `${hour}:00`}
+                  contentStyle={CHART_TOOLTIP}
                 />
-                <Bar dataKey="count" fill="#C4A35A" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="count"
+                  fill="var(--color-green-primary)"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -213,23 +251,31 @@ export function InsightsView() {
           <p className="meta chart-hint">Citywide captures per day</p>
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={growth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#d5dde3" />
+              <BarChart data={growth} style={{ background: "transparent" }}>
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: "#405463", fontSize: 11 }}
+                  tick={CHART_TICK}
+                  axisLine={CHART_AXIS}
+                  tickLine={false}
                   interval={1}
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fill: "#405463", fontSize: 12 }}
+                  tick={{ ...CHART_TICK, fontSize: 12 }}
+                  axisLine={CHART_AXIS}
+                  tickLine={false}
                   domain={[0, "auto"]}
                 />
                 <Tooltip
                   formatter={(value) => [value ?? 0, "captures"]}
                   labelFormatter={(label) => String(label)}
+                  contentStyle={CHART_TOOLTIP}
                 />
-                <Bar dataKey="count" fill="#1F8A70" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="count"
+                  fill="var(--color-green-primary)"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -250,6 +296,56 @@ export function InsightsView() {
           </div>
         </section>
       </div>
+
+      {selected && (
+        <div
+          className="spots-sheet-backdrop"
+          role="presentation"
+          onClick={closeSpot}
+        >
+          <div
+            className="spots-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Spot details"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="spots-sheet-close"
+              aria-label="Close"
+              onClick={closeSpot}
+            >
+              ×
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={selected.photo_url}
+              alt=""
+              className="spots-sheet-photo"
+            />
+            <div className="spots-sheet-body">
+              <p className="spots-sheet-meta">
+                <strong>
+                  {selectedLabel ||
+                    friendCodeFromDeviceId(selected.device_id)}
+                </strong>
+                <span>
+                  {format(new Date(selected.created_at), "h:mm a")}
+                </span>
+              </p>
+              {selected.caption?.trim() ? (
+                <p className="spots-sheet-caption">{selected.caption.trim()}</p>
+              ) : null}
+              {selected.location_name?.trim() ? (
+                <p className="spots-sheet-location">
+                  {selected.location_name.trim()}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

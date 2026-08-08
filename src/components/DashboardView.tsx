@@ -372,18 +372,18 @@ export function DashboardView() {
           <p className="meta chart-hint">Finds by hour (0–23)</p>
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={byHour}>
+              <BarChart data={byHour} style={{ background: "transparent" }}>
                 <XAxis
                   dataKey="hour"
-                  tick={{ fill: "#6b7c6b", fontSize: 11 }}
-                  axisLine={{ stroke: "#ddd2bc" }}
+                  tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
+                  axisLine={{ stroke: "var(--color-green-secondary)" }}
                   tickLine={false}
                   interval={1}
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fill: "#6b7c6b", fontSize: 12 }}
-                  axisLine={false}
+                  tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
+                  axisLine={{ stroke: "var(--color-green-secondary)" }}
                   tickLine={false}
                   domain={[0, "auto"]}
                 />
@@ -391,12 +391,17 @@ export function DashboardView() {
                   formatter={(value) => [value ?? 0, "finds"]}
                   labelFormatter={(hour) => `${hour}:00`}
                   contentStyle={{
-                    background: "#fdfaf4",
-                    border: "1px solid #ddd2bc",
-                    borderRadius: 10,
+                    background: "var(--color-bg-card)",
+                    border: "1px solid var(--color-green-secondary)",
+                    borderRadius: "8px",
+                    color: "var(--color-text)",
                   }}
                 />
-                <Bar dataKey="count" fill="#4a7c59" radius={[6, 6, 0, 0]} />
+                <Bar
+                  dataKey="count"
+                  fill="var(--color-green-primary)"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
