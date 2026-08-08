@@ -251,8 +251,8 @@ export function CheckInForm() {
     capturing || status === "locating" || status === "uploading";
 
   return (
-    <>
-      <aside className="split-side">
+    <div className="checkin-page">
+      <header className="checkin-header">
         <div className="panel-kicker">today&apos;s prompt</div>
         <h1>
           Find <em>{prompt}</em>
@@ -264,108 +264,107 @@ export function CheckInForm() {
         <p className="meta">
           Opens your camera for one photo — no uploads from your library.
         </p>
-      </aside>
+      </header>
 
-      <section className="split-main checkin-capture">
-        <div
-          className={`photo-stage${phase === "live" ? " photo-stage-live" : ""}`}
-        >
-          {phase === "preview" && preview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="Capture preview" />
-          ) : phase === "live" ? (
-            <>
-              <video
-                ref={videoRef}
-                className="photo-camera"
-                playsInline
-                muted
-                autoPlay
-              />
-              {busy ? (
-                <div
-                  className="camera-processing"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {status === "locating"
-                    ? "Getting place…"
-                    : status === "uploading"
-                      ? "Pinning…"
-                      : "Processing…"}
-                </div>
-              ) : (
-                <div className="camera-chrome">
-                  <button
-                    type="button"
-                    className="camera-cancel"
-                    onClick={() => {
-                      stopCamera();
-                      setPhase("idle");
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="camera-shutter"
-                    aria-label="Take photo"
-                    onClick={() => void capturePhoto()}
-                  >
-                    <span className="camera-shutter-inner" />
-                  </button>
-                  <span className="camera-chrome-spacer" aria-hidden="true" />
-                </div>
-              )}
-            </>
-          ) : (
-            <button
-              type="button"
-              className="photo-placeholder"
-              onClick={() => void startCamera()}
-              disabled={startingCamera || busy}
-            >
-              <CameraIcon />
-              <span>
-                {startingCamera ? "Opening camera…" : "tap to spot something"}
-              </span>
-            </button>
-          )}
-        </div>
-
-        {status !== "done" && (
-          <label className="field">
-            <span>Caption (optional)</span>
-            <input
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="where did you spot it?"
-              maxLength={120}
-              disabled={busy}
+      <div
+        className={`photo-stage${phase === "live" ? " photo-stage-live" : ""}`}
+      >
+        {phase === "preview" && preview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={preview} alt="Capture preview" />
+        ) : phase === "live" ? (
+          <>
+            <video
+              ref={videoRef}
+              className="photo-camera"
+              playsInline
+              muted
+              autoPlay
             />
-          </label>
+            {busy ? (
+              <div
+                className="camera-processing"
+                role="status"
+                aria-live="polite"
+              >
+                {status === "locating"
+                  ? "Getting place…"
+                  : status === "uploading"
+                    ? "Pinning…"
+                    : "Processing…"}
+              </div>
+            ) : (
+              <div className="camera-chrome">
+                <button
+                  type="button"
+                  className="camera-cancel"
+                  onClick={() => {
+                    stopCamera();
+                    setPhase("idle");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="camera-shutter"
+                  aria-label="Take photo"
+                  onClick={() => void capturePhoto()}
+                >
+                  <span className="camera-shutter-inner" />
+                </button>
+                <span className="camera-chrome-spacer" aria-hidden="true" />
+              </div>
+            )}
+          </>
+        ) : (
+          <button
+            type="button"
+            className="photo-placeholder"
+            onClick={() => void startCamera()}
+            disabled={startingCamera || busy}
+          >
+            <CameraIcon />
+            <span>
+              {startingCamera ? "Opening camera…" : "tap to spot something"}
+            </span>
+          </button>
         )}
+      </div>
 
-        {status === "done" && preview && (
-          <div className="checkin-success" role="status" aria-live="polite">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="" className="checkin-success-thumb" />
-            <p className="status">Spotted! Taking you to your path…</p>
-          </div>
-        )}
+      {status !== "done" && (
+        <label className="field checkin-caption">
+          <span className="sr-only">Caption (optional)</span>
+          <input
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="where did you spot it?"
+            maxLength={120}
+            disabled={busy}
+          />
+        </label>
+      )}
 
-        {message && status !== "done" && (
-          <p className={`status ${status === "error" ? "error" : ""}`}>
-            {message}
-          </p>
-        )}
-
-        <p className="meta">
-          saving to your path · {storageMode() === "supabase" ? "synced" : "local demo"}
-          {auth?.profile ? ` · @${auth.profile.username}` : ""}
+      {status === "done" && (
+        <p className="status checkin-status" role="status" aria-live="polite">
+          Spotted! Taking you to your path…
         </p>
-      </section>
-    </>
+      )}
+
+      {message && status !== "done" && (
+        <p
+          className={`status checkin-status ${status === "error" ? "error" : ""}`}
+        >
+          {message}
+        </p>
+      )}
+
+      <p className="checkin-footer">
+        saving to your path ·{" "}
+        {storageMode() === "supabase" ? "synced" : "local demo"}
+        {auth?.profile ? ` · @${auth.profile.username}` : ""}
+      </p>
+    </div>
   );
 }
 
