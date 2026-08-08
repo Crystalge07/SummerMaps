@@ -317,7 +317,7 @@ export function PathMap({
               key={c.id}
               latitude={lat}
               longitude={lng}
-              anchor="bottom"
+              anchor="center"
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
                 onSelectCheckIn?.(c);
@@ -343,8 +343,8 @@ export function PathMap({
                     : `Open find from ${format(new Date(c.created_at), "h:mm a")}`
                 }
               >
-                <span className="map-pin-head" />
-                <span className="map-pin-point" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.photo_url} alt="" draggable={false} />
               </button>
             </Marker>
           ))}
@@ -368,7 +368,7 @@ export function PathMap({
             latitude={displayCoords.get(popup.id)?.lat ?? popup.lat}
             longitude={displayCoords.get(popup.id)?.lng ?? popup.lng}
             anchor="bottom"
-            offset={36}
+            offset={28}
             closeOnClick={false}
             onClose={() => {
               setPopup(null);

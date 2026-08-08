@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AppLoadingScreen } from "@/components/AppLoadingScreen";
 import { useAuth } from "@/lib/auth";
 import { checkUsernameAvailable } from "@/lib/api";
 import {
@@ -56,15 +57,7 @@ export function AuthGate() {
   }, [needsUsername, username, formatError]);
 
   if (status === "loading") {
-    return (
-      <main className="auth-page">
-        <div className="auth-page-inner">
-          <p className="panel-kicker">just a moment</p>
-          <h1>Loading…</h1>
-          <p className="auth-lede">Checking for a saved session.</p>
-        </div>
-      </main>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (status === "error") {
