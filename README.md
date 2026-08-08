@@ -27,7 +27,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Route | Feature |
 | --- | --- |
 | `/` | Today's prompt + entry |
-| `/check-in` | Photo + location for today's prompt |
+| `/capture` | Photo + auto location pin for today's prompt |
 | `/path` | Your day as a connected path |
 | `/friends` | Add friends · see their paths |
 | `/city` | Public map of individual finds (no identity links) |

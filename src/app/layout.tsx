@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Caveat, Nunito } from "next/font/google";
+import { LocationConsent } from "@/components/LocationConsent";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
 
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="en" className={`${nunito.variable} ${caveat.variable}`}>
       <body>
         <Nav />
+        <LocationConsent />
         {children}
       </body>
     </html>

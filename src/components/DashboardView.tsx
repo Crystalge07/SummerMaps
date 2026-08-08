@@ -33,7 +33,7 @@ const STATS = [
   {
     key: "prompt",
     label: "today's prompt",
-    href: "/check-in",
+    href: "/capture",
     icon: "/brand/pin.svg",
     display: "text" as const,
   },

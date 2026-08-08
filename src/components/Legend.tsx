@@ -12,7 +12,7 @@ export function Legend({ paths }: { paths: PathSeries[] }) {
             <em>
               {p.checkins.length > 0
                 ? `${p.checkins.length} stop${p.checkins.length === 1 ? "" : "s"}`
-                : "No check-ins today"}
+                : "No finds today"}
             </em>
           </span>
         </li>

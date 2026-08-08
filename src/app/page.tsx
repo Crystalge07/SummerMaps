@@ -25,7 +25,7 @@ export default function Home() {
           path — strangers only see the finds.
         </p>
         <div className="cta-row">
-          <Link href="/check-in" className="btn primary">
+          <Link href="/capture" className="btn primary">
             Spot it
           </Link>
           <Link href="/city" className="btn ghost">

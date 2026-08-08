@@ -20,3 +20,8 @@ export function getCurrentPosition(): Promise<Coords> {
     );
   });
 }
+
+/** Coarse place label for pin details (avoids exact street-level coords). */
+export function formatApproxLocation(lat: number, lng: number): string {
+  return `Near ${lat.toFixed(2)}°, ${lng.toFixed(2)}°`;
+}
