@@ -8,7 +8,9 @@ import type {
   DeviceProfile,
   Friendship,
   PathSeries,
+  Profile,
 } from "./types";
+import { isUsernameTakenError, normalizeUsername } from "./username";
 
 function startOfTodayISO() {
   const d = new Date();
@@ -335,4 +337,124 @@ export function checkinsAsUnlinkedPins(checkins: CheckIn[]): PathSeries[] {
 
 export function storageMode(): "supabase" | "local" {
   return isSupabaseConfigured ? "supabase" : "local";
+}
+
+export async function getAuthProfile(userId: string): Promise<Profile | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as Profile) ?? null;
+}
+
+export async function claimUsername(username: string): Promise<Profile> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const normalized = normalizeUsername(username);
+  const { data, error } = await supabase.rpc("claim_username", {
+    new_username: normalized,
+  });
+  if (error) {
+    if (isUsernameTakenError(error)) {
+      throw new Error("username_taken");
+    }
+    const msg = error.message ?? "";
+    if (msg.includes("username_invalid")) {
+      throw new Error("username_invalid");
+    }
+    throw error;
+  }
+
+  const profile = data as Profile;
+  // Keep friend-code table in sync so existing friendship flows keep working.
+  await ensureDeviceProfile(profile.id, profile.username);
+  return profile;
+}
+
+/** Availability hint only — unique index / claim_username is the source of truth. */
+export async function checkUsernameAvailable(
+  username: string,
+): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return true;
+
+  const normalized = normalizeUsername(username);
+  if (!normalized) return false;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("username", normalized)
+    .maybeSingle();
+  if (error) throw error;
+  return data == null;
+}
+
+export async function searchProfiles(
+  query: string,
+  limit = 10,
+): Promise<Profile[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const q = normalizeUsername(query);
+  if (!q) return [];
+
+  const { data, error } = await supabase.rpc("search_profiles", {
+    query: q,
+    lim: limit,
+  });
+  if (error) throw error;
+  return (data ?? []) as Profile[];
+}
+
+export async function getProfileByUsername(
+  username: string,
+): Promise<Profile | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("username", normalizeUsername(username))
+    .maybeSingle();
+  if (error) throw error;
+  return (data as Profile) ?? null;
+}
+
+/** Add a friend by their public username (auth-backed profiles). */
+export async function addFriendByUsername(
+  myUserId: string,
+  username: string,
+): Promise<Friendship> {
+  const profile = await getProfileByUsername(username);
+  if (!profile) throw new Error("No one found with that username.");
+  if (profile.id === myUserId) {
+    throw new Error("You can't friend yourself.");
+  }
+
+  const already = await getFriendDeviceIds(myUserId);
+  if (already.includes(profile.id)) {
+    throw new Error("You're already connected.");
+  }
+
+  // Friendships still key off device_id columns — synced to auth.uid().
+  const friendDevice = await ensureDeviceProfile(profile.id, profile.username);
+  return addFriend(myUserId, friendDevice.code);
+}
+
+export async function upgradeAccount(email: string, password: string) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { data, error } = await supabase.auth.updateUser({ email, password });
+  if (error) throw error;
+  return data;
 }

@@ -9,11 +9,18 @@ export type CheckIn = {
   created_at: string;
 };
 
-/** Public profile for friend codes — no accounts, just a shareable handle. */
+/** Public profile for friend codes — shareable handle tied to a device/user id. */
 export type DeviceProfile = {
   device_id: string;
   code: string;
   display_name: string | null;
+  created_at: string;
+};
+
+/** Auth-backed profile — username is what others see and search for. */
+export type Profile = {
+  id: string;
+  username: string;
   created_at: string;
 };
 

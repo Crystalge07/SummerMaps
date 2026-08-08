@@ -4,10 +4,15 @@ import imageCompression from "browser-image-compression";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
+  AccountUpgradePrompt,
+  shouldOfferAccountUpgrade,
+} from "@/components/AccountUpgradePrompt";
+import {
   createCheckIn,
   storageMode,
   uploadCheckInPhoto,
 } from "@/lib/api";
+import { useAuthOptional } from "@/lib/auth";
 import { getDeviceId } from "@/lib/device";
 import { CITY_CENTER, getCurrentPosition } from "@/lib/geo";
 import { getTodaysPrompt } from "@/lib/prompts";
@@ -16,6 +21,7 @@ type Status = "idle" | "locating" | "uploading" | "done" | "error";
 type CameraPhase = "idle" | "live" | "preview";
 
 export function CheckInForm() {
+  const auth = useAuthOptional();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
@@ -28,6 +34,7 @@ export function CheckInForm() {
   const [message, setMessage] = useState("");
   const [startingCamera, setStartingCamera] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const prompt = getTodaysPrompt();
 
   useEffect(() => {
@@ -168,6 +175,9 @@ export function CheckInForm() {
         : "Pinned. Your path just grew.",
     );
     setCaption("");
+    if (auth && shouldOfferAccountUpgrade(auth.isAnonymous)) {
+      setShowUpgrade(true);
+    }
   }
 
   async function capturePhoto() {
@@ -366,8 +376,14 @@ export function CheckInForm() {
 
         <p className="meta">
           Storage: {storageMode() === "supabase" ? "Supabase" : "local demo"}
+          {auth?.profile ? ` · @${auth.profile.username}` : ""}
         </p>
       </section>
+
+      <AccountUpgradePrompt
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+      />
     </>
   );
 }

@@ -2,39 +2,64 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  AccountUpgradePrompt,
+  shouldOfferAccountUpgrade,
+} from "@/components/AccountUpgradePrompt";
+import {
   addFriend,
+  addFriendByUsername,
   ensureDeviceProfile,
   getFriendDeviceIds,
   getProfileByDevice,
+  searchProfiles,
 } from "@/lib/api";
+import { useAuthOptional } from "@/lib/auth";
 import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
-import type { DeviceProfile } from "@/lib/types";
+import type { DeviceProfile, Profile } from "@/lib/types";
+import { normalizeUsername } from "@/lib/username";
 import { DemoSeedButton } from "./DemoSeedButton";
 
 const SHARE_ORIGIN = "https://summer-maps.vercel.app";
 
 export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
+  const auth = useAuthOptional();
   const [me, setMe] = useState<DeviceProfile | null>(null);
   const [friends, setFriends] = useState<DeviceProfile[]>([]);
-  const [code, setCode] = useState(initialCode.slice(0, 6));
+  const [query, setQuery] = useState(
+    initialCode.length === 6 ? "" : initialCode,
+  );
+  const [code, setCode] = useState(
+    initialCode.length === 6 ? initialCode.slice(0, 6).toUpperCase() : "",
+  );
+  const [suggestions, setSuggestions] = useState<Profile[]>([]);
   const [adding, setAdding] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
-    if (initialCode) setCode(initialCode.slice(0, 6).toUpperCase());
+    if (initialCode.length === 6) {
+      setCode(initialCode.slice(0, 6).toUpperCase());
+    } else if (initialCode) {
+      setQuery(normalizeUsername(initialCode));
+    }
   }, [initialCode]);
 
-  const shareUrl = useMemo(
-    () => (me ? `${SHARE_ORIGIN}/friends?add=${me.code}` : ""),
-    [me],
-  );
+  const username = auth?.profile?.username;
+  const shareUrl = useMemo(() => {
+    if (username) return `${SHARE_ORIGIN}/friends?add=${encodeURIComponent(username)}`;
+    if (me) return `${SHARE_ORIGIN}/friends?add=${me.code}`;
+    return "";
+  }, [me, username]);
 
   async function refresh() {
     const deviceId = getDeviceId();
-    const profile = await ensureDeviceProfile(deviceId);
+    const profile = await ensureDeviceProfile(
+      deviceId,
+      auth?.profile?.username ?? undefined,
+    );
     setMe(profile);
     const ids = await getFriendDeviceIds(deviceId);
     const profiles = (
@@ -49,8 +74,25 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   }
 
   useEffect(() => {
-    refresh();
-  }, []);
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.profile?.username]);
+
+  useEffect(() => {
+    const q = normalizeUsername(query);
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      void searchProfiles(q, 8)
+        .then((rows) =>
+          setSuggestions(rows.filter((r) => r.username !== username)),
+        )
+        .catch(() => setSuggestions([]));
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [query, username]);
 
   async function copyText(value: string, kind: "code" | "link") {
     await navigator.clipboard.writeText(value);
@@ -58,14 +100,21 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     window.setTimeout(() => setCopied(null), 2000);
   }
 
-  async function onCopyCode() {
+  async function onCopyHandle() {
+    if (username) {
+      await copyText(username, "code");
+      return;
+    }
     if (!me) return;
     await copyText(me.code, "code");
   }
 
   async function onShare() {
-    if (!me) return;
-    const text = `Find me on Pathline — my code is ${me.code}. Add me at summer-maps.vercel.app/friends?add=${me.code}`;
+    if (!shareUrl) return;
+    const label = username ? `@${username}` : me?.code;
+    const text = username
+      ? `Find me on The Little Things — I'm @${username}. Add me at summer-maps.vercel.app/friends?add=${username}`
+      : `Find me on Pathline — my code is ${me?.code}. Add me at summer-maps.vercel.app/friends?add=${me?.code}`;
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({
@@ -78,10 +127,44 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
         if (err instanceof DOMException && err.name === "AbortError") return;
       }
     }
+    void label;
     await copyText(shareUrl, "link");
   }
 
-  async function onAddFriend(e: React.FormEvent) {
+  async function addByUsername(name: string) {
+    setSuccess("");
+    setError("");
+    setAdding(true);
+    try {
+      await addFriendByUsername(getDeviceId(), name);
+      setSuccess("Friend added! Open the map to see their path.");
+      setQuery("");
+      setSuggestions([]);
+      await refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not add friend.";
+      if (msg.includes("No one found")) {
+        setError("That username doesn't match anyone.");
+      } else if (msg.includes("already connected")) {
+        setError("You're already connected.");
+      } else if (msg.includes("yourself")) {
+        setError("That's your own username.");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function onAddByUsername(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = normalizeUsername(query);
+    if (!trimmed) return;
+    await addByUsername(trimmed);
+  }
+
+  async function onAddByCode(e: React.FormEvent) {
     e.preventDefault();
     setSuccess("");
     setError("");
@@ -112,63 +195,127 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     }
   }
 
+  const handleLabel = username ?? me?.code ?? "…";
+
   return (
     <div className="friends-page">
       {me && (
         <section className="friends-hero-card">
-          <p className="friends-label">Your friend code</p>
+          <p className="friends-label">
+            {username ? "Your username" : "Your friend code"}
+          </p>
           <div
             className="friends-code-display"
-            aria-label={`Friend code ${me.code}`}
+            aria-label={username ? `Username ${username}` : `Friend code ${me.code}`}
           >
-            {me.code}
+            {username ? `@${username}` : me.code}
           </div>
           <div className="friends-hero-actions">
-            <button type="button" className="btn primary" onClick={onCopyCode}>
-              {copied === "code" ? "Copied ✓" : "Copy code"}
+            <button type="button" className="btn primary" onClick={() => void onCopyHandle()}>
+              {copied === "code" ? "Copied ✓" : username ? "Copy username" : "Copy code"}
             </button>
-            <button type="button" className="btn ghost" onClick={onShare}>
+            <button type="button" className="btn ghost" onClick={() => void onShare()}>
               Share
             </button>
           </div>
-          <button
-            type="button"
-            className="friends-link-copy"
-            onClick={() => copyText(shareUrl, "link")}
-          >
-            <span>Or share this link:</span>
-            <em>{shareUrl.replace(/^https?:\/\//, "")}</em>
-            <CopyIcon />
-            {copied === "link" ? <strong>Copied ✓</strong> : null}
-          </button>
+          {shareUrl && (
+            <button
+              type="button"
+              className="friends-link-copy"
+              onClick={() => void copyText(shareUrl, "link")}
+            >
+              <span>Or share this link:</span>
+              <em>{shareUrl.replace(/^https?:\/\//, "")}</em>
+              <CopyIcon />
+              {copied === "link" ? <strong>Copied ✓</strong> : null}
+            </button>
+          )}
+          {auth?.isAnonymous && shouldOfferAccountUpgrade(true) && (
+            <button
+              type="button"
+              className="friends-link-copy"
+              onClick={() => setShowUpgrade(true)}
+            >
+              <span>Save account with email — clearing this browser loses @{handleLabel.replace(/^@/, "")}</span>
+            </button>
+          )}
         </section>
       )}
 
       <section className="friends-section">
         <h2>Add a friend</h2>
-        <form className="friends-add-form" onSubmit={onAddFriend}>
+        <form className="friends-add-form" onSubmit={(e) => void onAddByUsername(e)}>
           <input
-            value={code}
+            value={query}
             onChange={(e) =>
-              setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))
+              setQuery(
+                e.target.value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9_]/g, "")
+                  .slice(0, 20),
+              )
             }
-            placeholder="Enter their code"
-            maxLength={6}
-            autoCapitalize="characters"
+            placeholder="Search username"
+            autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            aria-label="Friend code"
+            aria-label="Username"
           />
           <button
             type="submit"
             className="btn primary friends-add-btn"
-            disabled={!code.trim() || adding}
+            disabled={!query.trim() || adding}
           >
             {adding ? "Adding..." : "Add"}
           </button>
         </form>
+        {suggestions.length > 0 && (
+          <ul className="username-suggestions">
+            {suggestions.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => void addByUsername(s.username)}
+                  disabled={adding}
+                >
+                  @{s.username}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {success && <p className="status">{success}</p>}
         {error && <p className="status error">{error}</p>}
+
+        <details className="friends-code-fallback">
+          <summary>Add with a 6-character code instead</summary>
+          <form className="friends-add-form" onSubmit={(e) => void onAddByCode(e)}>
+            <input
+              value={code}
+              onChange={(e) =>
+                setCode(
+                  e.target.value
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, "")
+                    .slice(0, 6),
+                )
+              }
+              placeholder="Enter their code"
+              maxLength={6}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              aria-label="Friend code"
+            />
+            <button
+              type="submit"
+              className="btn primary friends-add-btn"
+              disabled={!code.trim() || adding}
+            >
+              {adding ? "Adding..." : "Add"}
+            </button>
+          </form>
+        </details>
       </section>
 
       <section className="friends-section">
@@ -181,7 +328,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/path-mark.svg" alt="" width={56} height={56} />
             <p>No one in your circle yet.</p>
-            <p className="meta">Share your code to get started.</p>
+            <p className="meta">Share your username to get started.</p>
           </div>
         ) : (
           <ul className="friends-contact-list">
@@ -193,7 +340,9 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
                     style={{ background: colorForDevice(f.device_id) }}
                   />
                   <span className="friends-contact-name">
-                    {f.display_name?.trim() || f.code}
+                    {f.display_name?.trim()
+                      ? `@${f.display_name.trim()}`
+                      : f.code}
                   </span>
                   <span className="friends-contact-go" aria-hidden>
                     →
@@ -211,7 +360,12 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
         </a>
       )}
 
-      <DemoSeedButton onLoaded={refresh} />
+      <DemoSeedButton onLoaded={() => void refresh()} />
+
+      <AccountUpgradePrompt
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+      />
     </div>
   );
 }

@@ -56,3 +56,74 @@ create policy "checkin_photos_read" on storage.objects
 
 create policy "checkin_photos_insert" on storage.objects
   for insert with check (bucket_id = 'checkins');
+
+-- ——— Anonymous auth + usernames ———
+-- Prerequisites: Authentication → Providers → Allow anonymous sign-ins.
+-- Enable CAPTCHA before public launch (anon sign-in is rate-limited per IP).
+
+create extension if not exists citext;
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  username citext unique not null,
+  created_at timestamptz not null default now(),
+  constraint profiles_username_format check (username ~ '^[a-z0-9_]{3,20}$')
+);
+
+create index if not exists profiles_username_idx on public.profiles (username);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "auth_profiles_select" on public.profiles;
+create policy "auth_profiles_select" on public.profiles
+  for select using (true);
+
+-- Username is claimed via RPC only (no direct insert/update policies).
+
+create or replace function public.claim_username(new_username citext)
+returns public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result public.profiles;
+  normalized citext;
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated' using errcode = 'P0001';
+  end if;
+
+  normalized := lower(trim(new_username::text))::citext;
+
+  if normalized !~ '^[a-z0-9_]{3,20}$' then
+    raise exception 'username_invalid' using errcode = 'P0001';
+  end if;
+
+  insert into public.profiles (id, username)
+  values (auth.uid(), normalized)
+  returning * into result;
+
+  return result;
+exception
+  when unique_violation then
+    raise exception 'username_taken' using errcode = 'P0001';
+end;
+$$;
+
+create or replace function public.search_profiles(query text, lim int default 10)
+returns setof public.profiles
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select *
+  from public.profiles
+  where username ilike lower(trim(query)) || '%'
+  order by username
+  limit least(coalesce(lim, 10), 50);
+$$;
+
+grant execute on function public.claim_username(citext) to anon, authenticated;
+grant execute on function public.search_profiles(text, int) to anon, authenticated;

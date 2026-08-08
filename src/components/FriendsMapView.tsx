@@ -56,12 +56,8 @@ export function FriendsMapView() {
           const code =
             profile?.code ?? friendCodeFromDeviceId(deviceId);
           const name = profile?.display_name?.trim();
-          const label =
-            deviceId === me
-              ? name
-                ? `You · ${name}`
-                : `You · ${code}`
-              : name || code;
+          const handle = name ? `@${name}` : code;
+          const label = deviceId === me ? `You · ${handle}` : handle;
           const rows = (byDevice.get(deviceId) ?? []).sort((a, b) =>
             a.created_at.localeCompare(b.created_at),
           );
