@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { getAllCheckins, getTodayCityCheckins } from "@/lib/api";
+import { captureMomentNearLabel } from "@/lib/landmarks";
 import {
   activeSince,
   dailyCounts,
@@ -128,11 +129,7 @@ export function InsightsView() {
                     {format(new Date(c.created_at), "h:mm a")}
                   </span>
                   <span className="live-feed-body">
-                    {c.caption?.trim()
-                      ? c.caption.trim()
-                      : c.prompt
-                        ? `Spotted “${c.prompt}”`
-                        : "New capture"}
+                    {captureMomentNearLabel(c.lat, c.lng, c.location_name)}
                   </span>
                 </Link>
               </li>
