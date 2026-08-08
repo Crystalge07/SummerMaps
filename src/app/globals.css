@@ -1723,6 +1723,90 @@ input.underline-input:focus {
   margin-top: 0.25rem;
 }
 
+/* Full-screen sphere boot splash */
+.app-loading-screen {
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1rem 1.5rem;
+  box-sizing: border-box;
+  background:
+    radial-gradient(
+      ellipse 80% 60% at 50% 40%,
+      color-mix(in srgb, var(--butter) 35%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(
+      165deg,
+      var(--paper) 0%,
+      var(--paper-2) 55%,
+      color-mix(in srgb, var(--sage) 18%, var(--paper)) 100%
+    );
+  overflow: hidden;
+}
+
+.app-loading-copy {
+  text-align: center;
+  z-index: 2;
+}
+
+.app-loading-copy h1 {
+  font-family: var(--font-display), "Caveat", cursive;
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  font-weight: 600;
+  margin: 0.15rem 0 0.25rem;
+  line-height: 1.05;
+}
+
+.app-loading-sphere {
+  flex-shrink: 0;
+}
+
+.consent-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--ink) 38%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.consent-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.35rem 1.4rem 1.45rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(44, 62, 45, 0.18);
+}
+
+.consent-card h2 {
+  margin: 0;
+  font-family: var(--font-display), "Playfair Display", serif;
+  font-size: clamp(1.8rem, 4vw, 2.2rem);
+  line-height: 1.1;
+  color: var(--sage-deep);
+}
+
+.consent-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+.consent-card .btn {
+  justify-self: start;
+  margin-top: 0.25rem;
+}
+
 .auth-page {
   min-height: 100dvh;
   width: 100%;

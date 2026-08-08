@@ -14,8 +14,8 @@ type Mode = "sign_in" | "sign_up";
 type Availability = "idle" | "checking" | "available" | "taken" | "invalid";
 
 /**
- * Optional account panel for Profile — never blocks the app shell.
- * Anonymous device users skip this entirely.
+ * Account gate + Profile account panel.
+ * AppChrome shows this alone until the user is signed in with a username.
  */
 export function AuthGate() {
   const {
@@ -83,7 +83,8 @@ export function AuthGate() {
           {authError ?? "Something went wrong connecting to Supabase."}
         </p>
         <p className="lede">
-          You can still use the app with this device — login is optional.
+          Fix the connection issue, then try again — an account is required to
+          use the app.
         </p>
         <button type="button" className="btn primary" onClick={() => retry()}>
           Try again
@@ -127,14 +128,14 @@ export function AuthGate() {
 
     return (
       <section className="panel account-panel" aria-labelledby="auth-title">
-        <p className="panel-kicker">optional · sync across devices</p>
+        <p className="panel-kicker">account required</p>
         <h2 id="auth-title">
           {mode === "sign_up" ? "Create an account" : "Welcome back"}
         </h2>
         <p className="lede">
           {mode === "sign_up"
-            ? "Optional. This device already works without an account. Email lets you recover finds on another phone — friends only see the username you pick next."
-            : "Sign in to sync this device with your account. Skip anytime — the app works either way."}
+            ? "Sign up to capture little things and sync across devices. Friends only see the username you pick next — never your email."
+            : "Sign in to get back to your path, friends, and captures."}
         </p>
         <form className="auth-form" onSubmit={(e) => void onAuthSubmit(e)}>
           <label className="field">
