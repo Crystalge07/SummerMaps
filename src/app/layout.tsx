@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Caveat, Nunito, Playfair_Display } from "next/font/google";
 import { AppChrome } from "@/components/AppChrome";
 import { AuthProvider } from "@/lib/auth";
@@ -25,6 +25,13 @@ export const metadata: Metadata = {
   title: "The Little Things",
   description:
     "A shared daily prompt to notice life's small joys. Photo what you find, pin where you found it. Friends see paths; strangers see only individual captures.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f5f0e8",
 };
 
 export default function RootLayout({
