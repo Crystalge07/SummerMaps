@@ -334,7 +334,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
           <ul className="friends-contact-list">
             {friends.map((f) => (
               <li key={f.device_id}>
-                <a className="friends-contact-row" href="/friends/map">
+                <a className="friends-contact-row" href="/map?layer=friends">
                   <span
                     className="friends-color-dot"
                     style={{ background: colorForDevice(f.device_id) }}
@@ -355,7 +355,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
       </section>
 
       {friends.length > 0 && (
-        <a className="btn primary friends-map-cta" href="/friends/map">
+        <a className="btn primary friends-map-cta" href="/map?layer=friends">
           Open friends map
         </a>
       )}
