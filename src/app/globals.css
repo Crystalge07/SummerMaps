@@ -411,14 +411,60 @@ a {
   line-height: 1.55;
 }
 
+/* Check-in home: fill viewport under the tab bar (no dead space). */
+.tab-page:has(> .checkin-page) {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.checkin-page {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem 0.55rem;
+  box-sizing: border-box;
+}
+
+.checkin-header {
+  flex: 0 0 auto;
+}
+
+.checkin-header h1 {
+  font-family: var(--font-display), "Playfair Display", serif;
+  font-size: clamp(1.85rem, 6vw, 2.6rem);
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  line-height: 1.1;
+}
+
+.checkin-header h1 em {
+  font-style: italic;
+  color: var(--sage-deep);
+}
+
+.checkin-header .lede {
+  margin-bottom: 0.35rem;
+}
+
+.checkin-header .meta {
+  margin: 0;
+}
+
 .checkin-capture {
   min-width: 0;
 }
 
 .photo-stage {
   position: relative;
-  flex: 1;
-  min-height: 220px;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
   border-radius: 16px;
   overflow: hidden;
@@ -427,11 +473,29 @@ a {
 }
 
 .photo-stage-live {
-  aspect-ratio: 3 / 4;
-  max-height: min(70vh, 640px);
   background: #0b0f12;
   border-style: solid;
   border-color: #0b0f12;
+}
+
+.checkin-caption {
+  flex: 0 0 auto;
+  margin: 0.15rem 0 0;
+}
+
+.checkin-status {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.checkin-footer {
+  flex: 0 0 auto;
+  margin: 0;
+  padding-top: 0.15rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  text-align: center;
 }
 
 .photo-stage img,
