@@ -24,7 +24,7 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "The Little Things",
   description:
-    "A shared daily prompt to notice life's small joys. Photo what you find, pin where you found it. Friends see paths; strangers see only individual finds.",
+    "A shared daily prompt to notice life's small joys. Photo what you find, pin where you found it. Friends see paths; strangers see only individual captures.",
 };
 
 export default function RootLayout({

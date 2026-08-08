@@ -1,12 +1,12 @@
 import { AuthGate } from "@/components/AuthGate";
-import { DashboardView } from "@/components/DashboardView";
+import { ProfileView } from "@/components/ProfileView";
 
 export default function ProfilePage() {
   return (
-    <>
+    <main className="fill-page">
       <p className="profile-page-header brand-script">your little things</p>
       <AuthGate />
-      <DashboardView />
-    </>
+      <ProfileView />
+    </main>
   );
 }

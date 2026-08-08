@@ -50,7 +50,7 @@ export function CheckInCard({
         {error && <p className="status error">{error}</p>}
         {confirming ? (
           <div className="checkin-card-confirm" onClick={(e) => e.stopPropagation()}>
-            <span>Delete this find?</span>
+            <span>Delete this capture?</span>
             <div className="actions">
               <button
                 type="button"
@@ -76,8 +76,8 @@ export function CheckInCard({
         <button
           type="button"
           className="checkin-card-delete"
-          aria-label="Delete find"
-          title="Delete find"
+          aria-label="Delete capture"
+          title="Delete capture"
           onClick={(e) => {
             e.stopPropagation();
             setConfirming(true);

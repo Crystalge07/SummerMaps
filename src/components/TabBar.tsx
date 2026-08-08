@@ -17,15 +17,16 @@ const tabs = [
     icon: MapIcon,
   },
   {
-    href: "/friends",
-    label: "Friends",
-    match: (path: string) => path.startsWith("/friends"),
-    icon: FriendsIcon,
+    href: "/insights",
+    label: "Insights",
+    match: (path: string) => path.startsWith("/insights"),
+    icon: InsightsIcon,
   },
   {
     href: "/profile",
     label: "Profile",
-    match: (path: string) => path.startsWith("/profile"),
+    match: (path: string) =>
+      path.startsWith("/profile") || path.startsWith("/friends"),
     icon: ProfileIcon,
   },
 ] as const;
@@ -84,13 +85,13 @@ function MapIcon() {
   );
 }
 
-function FriendsIcon() {
+function InsightsIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="tab-icon">
-      <circle cx="8.5" cy="8.5" r="2.6" {...strokeProps} />
-      <circle cx="16" cy="9.8" r="2.1" {...strokeProps} />
-      <path {...strokeProps} d="M4 19c.5-2.6 2.4-4.2 4.5-4.2s4 1.6 4.5 4.2" />
-      <path {...strokeProps} d="M13.4 15.3c1.8.2 3.4 1.6 3.8 3.7" />
+      <path {...strokeProps} d="M5 18V10" />
+      <path {...strokeProps} d="M10 18V6" />
+      <path {...strokeProps} d="M15 18v-8" />
+      <path {...strokeProps} d="M20 18V8" />
     </svg>
   );
 }
