@@ -19,10 +19,8 @@ export function DemoSeedButton({ onLoaded }: { onLoaded?: () => void }) {
         onClick={async () => {
           setBusy(true);
           try {
-            const { friendCodes, count } = await loadLocalDemoSeed();
-            setMsg(
-              `Loaded ${count} captures. Demo friends: ${friendCodes.join(", ")}.`,
-            );
+            const { count } = await loadLocalDemoSeed();
+            setMsg(`Loaded ${count} demo captures and friend paths.`);
             onLoaded?.();
           } catch (err) {
             setMsg(err instanceof Error ? err.message : "Seed failed.");

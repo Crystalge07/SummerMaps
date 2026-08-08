@@ -23,17 +23,16 @@ export function ProfileView() {
   const [me, setMe] = useState<DeviceProfile | null>(null);
   const [capturesToday, setCapturesToday] = useState(0);
   const [capturesAll, setCapturesAll] = useState(0);
-  const [copied, setCopied] = useState<"code" | "link" | "email" | null>(null);
+  const [copied, setCopied] = useState<"username" | "link" | "email" | null>(
+    null,
+  );
   const [signingOut, setSigningOut] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const shareUrl = useMemo(() => {
-    if (username) {
-      return `${SHARE_ORIGIN}/friends?add=${encodeURIComponent(username)}`;
-    }
-    if (me) return `${SHARE_ORIGIN}/friends?add=${me.code}`;
-    return "";
-  }, [me, username]);
+    if (!username) return "";
+    return `${SHARE_ORIGIN}/friends?add=${encodeURIComponent(username)}`;
+  }, [username]);
 
   useEffect(() => {
     const deviceId = getDeviceId();
@@ -47,7 +46,10 @@ export function ProfileView() {
     );
   }, [username]);
 
-  async function copyText(text: string, kind: "code" | "link" | "email") {
+  async function copyText(
+    text: string,
+    kind: "username" | "link" | "email",
+  ) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(kind);
@@ -58,10 +60,8 @@ export function ProfileView() {
   }
 
   async function onShare() {
-    if (!shareUrl) return;
-    const text = username
-      ? `Find me on The Little Things — I'm @${username}. Add me at summer-maps.vercel.app/friends?add=${username}`
-      : `Find me on The Little Things — my code is ${me?.code}. Add me at summer-maps.vercel.app/friends?add=${me?.code}`;
+    if (!shareUrl || !username) return;
+    const text = `Find me on The Little Things — I'm @${username}. Add me at summer-maps.vercel.app/friends?add=${username}`;
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({
@@ -172,39 +172,35 @@ export function ProfileView() {
 
       <section className="profile-block profile-share-block">
         <h2>Share</h2>
-        <p className="meta">
-          Let friends find you with your username or a link.
-        </p>
-        {username || me ? (
-          <p className="profile-handle">
-            {username ? `@${username}` : me?.code}
+        {username ? (
+          <>
+            <p className="meta">
+              Let friends find you with your username or a link.
+            </p>
+            <p className="profile-handle">@{username}</p>
+            <div className="profile-share-actions">
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => void copyText(username, "username")}
+              >
+                {copied === "username" ? "Copied" : "Copy username"}
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={!shareUrl}
+                onClick={() => void onShare()}
+              >
+                {copied === "link" ? "Link copied" : "Share"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="meta">
+            Choose a username above so friends can find you.
           </p>
-        ) : null}
-        <div className="profile-share-actions">
-          <button
-            type="button"
-            className="btn primary"
-            disabled={!username && !me}
-            onClick={() => {
-              if (username) void copyText(username, "code");
-              else if (me) void copyText(me.code, "code");
-            }}
-          >
-            {copied === "code"
-              ? "Copied"
-              : username
-                ? "Copy username"
-                : "Copy friend code"}
-          </button>
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={!shareUrl}
-            onClick={() => void onShare()}
-          >
-            {copied === "link" ? "Link copied" : "Share"}
-          </button>
-        </div>
+        )}
       </section>
 
       <section className="profile-block">

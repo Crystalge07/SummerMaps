@@ -10,7 +10,6 @@ import {
 } from "@/lib/api";
 import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
-import { friendCodeFromDeviceId } from "@/lib/friendCode";
 import { getTodaysPrompt } from "@/lib/prompts";
 import type { CheckIn, PathSeries } from "@/lib/types";
 import { CheckInDetail } from "./CheckInDetail";
@@ -53,10 +52,8 @@ export function FriendsMapView() {
       const series: PathSeries[] = await Promise.all(
         deviceIds.map(async (deviceId, index) => {
           const profile = await getProfileByDevice(deviceId);
-          const code =
-            profile?.code ?? friendCodeFromDeviceId(deviceId);
           const name = profile?.display_name?.trim();
-          const handle = name ? `@${name}` : code;
+          const handle = name ? `@${name}` : "Friend";
           const label = deviceId === me ? `You · ${handle}` : handle;
           const rows = (byDevice.get(deviceId) ?? []).sort((a, b) =>
             a.created_at.localeCompare(b.created_at),
