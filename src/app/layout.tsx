@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Caveat, Nunito } from "next/font/google";
+import { AuthGate } from "@/components/AuthGate";
 import { LocationConsent } from "@/components/LocationConsent";
 import { TabBar } from "@/components/TabBar";
-import { UsernamePicker } from "@/components/UsernamePicker";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
@@ -32,7 +32,7 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <div className="app-shell">{children}</div>
-          <UsernamePicker />
+          <AuthGate />
           <LocationConsent />
           <TabBar />
         </AuthProvider>

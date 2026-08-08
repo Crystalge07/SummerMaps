@@ -24,9 +24,14 @@ type AuthContextValue = {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
-  isAnonymous: boolean;
+  /** True when Supabase is on and there is no session yet. */
+  needsAuth: boolean;
   needsUsername: boolean;
   error: string | null;
+  retry: () => void;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<"session" | "confirm">;
+  signOut: () => Promise<void>;
   claimUsername: (username: string) => Promise<Profile>;
   refreshProfile: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -34,11 +39,49 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function readIsAnonymous(user: User | null): boolean {
-  if (!user) return false;
-  if (typeof user.is_anonymous === "boolean") return user.is_anonymous;
-  const claim = user.app_metadata?.provider === "anonymous";
-  return claim;
+function errorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === "object" && "message" in err) {
+    const msg = (err as { message?: unknown }).message;
+    if (typeof msg === "string" && msg.trim()) return msg;
+  }
+  if (typeof err === "string" && err.trim()) return err;
+  return "Something went wrong with auth.";
+}
+
+function friendlyAuthError(err: unknown): string {
+  const raw = errorMessage(err);
+  const lower = raw.toLowerCase();
+
+  if (
+    lower.includes("relation") &&
+    lower.includes("profiles") &&
+    lower.includes("does not exist")
+  ) {
+    return (
+      "Supabase is missing the profiles table. Run the latest supabase/schema.sql in the SQL editor, then try again."
+    );
+  }
+
+  if (lower.includes("claim_username") || lower.includes("search_profiles")) {
+    return (
+      "Supabase is missing username RPCs. Run the latest supabase/schema.sql in the SQL editor, then try again."
+    );
+  }
+
+  if (lower.includes("email not confirmed")) {
+    return "Confirm your email from the link we sent, then sign in.";
+  }
+
+  if (lower.includes("invalid login credentials")) {
+    return "Wrong email or password.";
+  }
+
+  if (lower.includes("user already registered")) {
+    return "That email already has an account — sign in instead.";
+  }
+
+  return raw;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -69,6 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function bootstrap() {
     if (!isSupabaseConfigured) {
+      setSession(null);
+      setProfile(null);
       setStatus("ready");
       return;
     }
@@ -80,27 +125,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      setStatus("loading");
       setError(null);
-      const { data: existing, error: sessionError } =
-        await supabase.auth.getSession();
+      const { data, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
-
-      let next = existing.session;
-      if (!next) {
-        const { data, error: anonError } =
-          await supabase.auth.signInAnonymously();
-        if (anonError) throw anonError;
-        next = data.session;
-      }
-
-      await applySession(next);
+      await applySession(data.session);
       setStatus("ready");
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Could not start a session. Check anonymous sign-ins are enabled.";
-      setError(message);
+      setError(friendlyAuthError(err));
       setStatus("error");
     }
   }
@@ -115,9 +147,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, next) => {
-      void applySession(next).catch(() => {
-        /* profile load errors surface on next explicit action */
-      });
+      void applySession(next)
+        .then(() => setStatus("ready"))
+        .catch((err) => {
+          setError(friendlyAuthError(err));
+          setStatus("error");
+        });
     });
 
     return () => subscription.unsubscribe();
@@ -125,9 +160,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const user = session?.user ?? null;
-  const isAnonymous = readIsAnonymous(user);
+  const needsAuth =
+    isSupabaseConfigured && status === "ready" && !session;
   const needsUsername =
     isSupabaseConfigured && status === "ready" && Boolean(user) && !profile;
+
+  async function signIn(email: string, password: string) {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase is not configured.");
+
+    const { data, error: signInError } =
+      await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) throw new Error(friendlyAuthError(signInError));
+    await applySession(data.session);
+    setStatus("ready");
+  }
+
+  async function signUp(
+    email: string,
+    password: string,
+  ): Promise<"session" | "confirm"> {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase is not configured.");
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    if (signUpError) throw new Error(friendlyAuthError(signUpError));
+
+    if (data.session) {
+      await applySession(data.session);
+      setStatus("ready");
+      return "session";
+    }
+
+    // Confirm-email is on — no session until they click the link.
+    return "confirm";
+  }
+
+  async function signOut() {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    setStatus("ready");
+  }
 
   async function claimUsername(username: string): Promise<Profile> {
     const row = await claimUsernameApi(username);
@@ -153,9 +232,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     user,
     profile,
-    isAnonymous,
+    needsAuth,
     needsUsername,
     error,
+    retry: () => {
+      void bootstrap();
+    },
+    signIn,
+    signUp,
+    signOut,
     claimUsername,
     refreshProfile,
     refreshSession,

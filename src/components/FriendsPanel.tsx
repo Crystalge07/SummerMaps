@@ -2,10 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AccountUpgradePrompt,
-  shouldOfferAccountUpgrade,
-} from "@/components/AccountUpgradePrompt";
-import {
   addFriend,
   addFriendByUsername,
   ensureDeviceProfile,
@@ -37,7 +33,6 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
-  const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
     if (initialCode.length === 6) {
@@ -195,8 +190,6 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     }
   }
 
-  const handleLabel = username ?? me?.code ?? "…";
-
   return (
     <div className="friends-page">
       {me && (
@@ -228,15 +221,6 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
               <em>{shareUrl.replace(/^https?:\/\//, "")}</em>
               <CopyIcon />
               {copied === "link" ? <strong>Copied ✓</strong> : null}
-            </button>
-          )}
-          {auth?.isAnonymous && shouldOfferAccountUpgrade(true) && (
-            <button
-              type="button"
-              className="friends-link-copy"
-              onClick={() => setShowUpgrade(true)}
-            >
-              <span>Save account with email — clearing this browser loses @{handleLabel.replace(/^@/, "")}</span>
             </button>
           )}
         </section>
@@ -361,11 +345,6 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
       )}
 
       <DemoSeedButton onLoaded={() => void refresh()} />
-
-      <AccountUpgradePrompt
-        open={showUpgrade}
-        onClose={() => setShowUpgrade(false)}
-      />
     </div>
   );
 }

@@ -450,11 +450,3 @@ export async function addFriendByUsername(
   return addFriend(myUserId, friendDevice.code);
 }
 
-export async function upgradeAccount(email: string, password: string) {
-  const supabase = getSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { data, error } = await supabase.auth.updateUser({ email, password });
-  if (error) throw error;
-  return data;
-}
