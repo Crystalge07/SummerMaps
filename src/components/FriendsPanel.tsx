@@ -224,21 +224,21 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   }
 
   return (
-    <div className="friends-page">
+    <div className="profile-page friends-page">
       {me && (
-        <section className="friends-hero-card">
-          <p className="friends-label">
+        <section className="profile-block profile-share-block">
+          <p className="panel-kicker">
             {username ? "Your username" : "Your friend code"}
           </p>
-          <div
-            className="friends-code-display"
+          <p
+            className="profile-handle"
             aria-label={username ? `Username ${username}` : `Friend code ${me.code}`}
           >
             {username ? `@${username}` : me.code}
-          </div>
-          <div className="friends-hero-actions">
+          </p>
+          <div className="profile-share-actions">
             <button type="button" className="btn primary" onClick={() => void onCopyHandle()}>
-              {copied === "code" ? "Copied ✓" : username ? "Copy username" : "Copy code"}
+              {copied === "code" ? "Copied" : username ? "Copy username" : "Copy code"}
             </button>
             <button type="button" className="btn ghost" onClick={() => void onShare()}>
               <ShareIcon /> Share
@@ -253,13 +253,13 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
               <span>Or share this link:</span>
               <em>{shareUrl.replace(/^https?:\/\//, "")}</em>
               <CopyIcon />
-              {copied === "link" ? <strong>Copied ✓</strong> : null}
+              {copied === "link" ? <strong>Copied</strong> : null}
             </button>
           )}
         </section>
       )}
 
-      <section className="friends-section">
+      <section className="profile-block">
         <h2>Add a friend</h2>
         <form className="friends-add-form" onSubmit={(e) => void onAddByUsername(e)}>
           <input
@@ -335,7 +335,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
         </details>
       </section>
 
-      <section className="friends-section">
+      <section className="profile-block">
         <h2>
           Your circle <span className="friends-count">{friends.length}</span>
         </h2>

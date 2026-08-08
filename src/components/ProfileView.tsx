@@ -88,7 +88,7 @@ export function ProfileView() {
   return (
     <div className="profile-page">
       {!signedIn && (
-        <header className="profile-header panel">
+        <header className="profile-identity">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/default-avatar.svg"
@@ -108,7 +108,7 @@ export function ProfileView() {
         </p>
       )}
 
-      <section className="panel profile-section">
+      <section className="profile-block">
         <button
           type="button"
           className="profile-settings-toggle"
@@ -166,7 +166,7 @@ export function ProfileView() {
         )}
       </section>
 
-      <section className="panel profile-section">
+      <section className="profile-block">
         <h2>Your activity</h2>
         <div className="profile-activity-stats">
           <div>
@@ -183,11 +183,16 @@ export function ProfileView() {
         </Link>
       </section>
 
-      <section className="panel profile-section">
+      <section className="profile-block profile-share-block">
         <h2>Share</h2>
         <p className="meta">
           Let friends find you with your username or a link.
         </p>
+        {username || me ? (
+          <p className="profile-handle">
+            {username ? `@${username}` : me?.code}
+          </p>
+        ) : null}
         <div className="profile-share-actions">
           <button
             type="button"
@@ -201,7 +206,7 @@ export function ProfileView() {
             {copied === "code"
               ? "Copied"
               : username
-                ? `Copy @${username}`
+                ? "Copy username"
                 : "Copy friend code"}
           </button>
           <button
@@ -210,12 +215,12 @@ export function ProfileView() {
             disabled={!shareUrl}
             onClick={() => void onShare()}
           >
-            {copied === "link" ? "Link copied" : "Share link"}
+            {copied === "link" ? "Link copied" : "Share"}
           </button>
         </div>
       </section>
 
-      <section className="panel profile-section">
+      <section className="profile-block">
         <h2>Friends</h2>
         <p className="meta">
           Add people, share your handle, and see their paths on the map.

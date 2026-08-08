@@ -305,7 +305,7 @@ export function AuthGate() {
   // Signed in with username
   const initial = profile?.username?.[0]?.toUpperCase() ?? "?";
   return (
-    <section className="panel account-panel" aria-labelledby="account-title">
+    <section className="profile-identity" aria-labelledby="account-title">
       <h2 id="account-title" className="sr-only">
         Account
       </h2>
@@ -315,7 +315,7 @@ export function AuthGate() {
       {profile?.username && (
         <p className="profile-username">@{profile.username}</p>
       )}
-      <p className="lede" style={{ textAlign: "center" }}>
+      <p className="meta profile-identity-meta">
         {profile?.username ? (
           user?.email ? (
             `synced · ${user.email}`
