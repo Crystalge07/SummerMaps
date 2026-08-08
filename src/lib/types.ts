@@ -6,6 +6,8 @@ export type CheckIn = {
   lng: number;
   photo_url: string;
   caption: string | null;
+  /** Human-readable place from reverse geocode; null/absent if unknown. */
+  location_name?: string | null;
   created_at: string;
 };
 
@@ -47,4 +49,5 @@ export type CreateCheckInInput = {
   lng: number;
   photo_url: string;
   caption?: string | null;
+  location_name?: string | null;
 };

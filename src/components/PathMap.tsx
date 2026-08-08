@@ -400,6 +400,9 @@ export function PathMap({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={popup.photo_url} alt="" />
               <strong>{format(new Date(popup.created_at), "h:mm a")}</strong>
+              {popup.location_name?.trim() ? (
+                <p className="checkin-location">{popup.location_name.trim()}</p>
+              ) : null}
               {popup.caption && <p>{popup.caption}</p>}
               {deleteError && <p className="status error">{deleteError}</p>}
               {canDeletePopup &&
