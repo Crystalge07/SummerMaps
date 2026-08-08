@@ -1,7 +1,10 @@
 "use client";
 
+import { friendCodeFromDeviceId } from "./friendCode";
+import { getDeviceId } from "./device";
 import { localStore } from "./localStore";
-import type { CheckIn, Group, GroupMember } from "./types";
+import { getTodaysPrompt } from "./prompts";
+import type { CheckIn, DeviceProfile, Friendship } from "./types";
 
 const venues = [
   { name: "Union Station", lat: 43.6453, lng: -79.3806 },
@@ -18,26 +21,29 @@ const venues = [
   { name: "Cabbagetown", lat: 43.6662, lng: -79.3634 },
 ];
 
-const travelers = [
+/** Demo friends — connected paths for the friends map. */
+const friends = [
   {
     id: "11111111-1111-4111-8111-111111111111",
-    color: "#E85D4C",
+    name: "Alex",
     stops: [0, 1, 2, 11],
   },
   {
     id: "22222222-2222-4222-8222-222222222222",
-    color: "#1F8A70",
+    name: "Sam",
     stops: [4, 5, 6, 7],
   },
+];
+
+/** Stranger finds — city pins only; never friended to the viewer. */
+const strangers = [
   {
     id: "33333333-3333-4333-8333-333333333333",
-    color: "#F4A261",
-    stops: [10, 9, 8, 7],
+    stops: [10, 9, 8],
   },
   {
     id: "44444444-4444-4444-8444-444444444444",
-    color: "#3D5A80",
-    stops: [3, 4, 0, 10],
+    stops: [3, 4, 0],
   },
 ];
 
@@ -53,30 +59,17 @@ const placeholderPhoto =
     `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1F8A70"/><stop offset="1" stop-color="#E85D4C"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="50%" y="52%" fill="white" font-size="42" font-family="Arial" text-anchor="middle">Pathline</text></svg>`,
   );
 
-export async function loadLocalDemoSeed() {
-  const groupId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-  const group: Group = {
-    id: groupId,
-    code: "DEMO01",
-    name: "Demo Circle",
-    created_at: new Date().toISOString(),
-  };
-
-  const members: GroupMember[] = travelers.map((t) => ({
-    id: crypto.randomUUID(),
-    group_id: groupId,
-    device_id: t.id,
-    display_color: t.color,
-    joined_at: new Date().toISOString(),
-  }));
-
-  const checkins: CheckIn[] = travelers.flatMap((t, travelerIdx) =>
+function makeCheckins(
+  travelers: { id: string; stops: number[] }[],
+  prompt: string,
+): CheckIn[] {
+  return travelers.flatMap((t, travelerIdx) =>
     t.stops.map((venueIdx, stopIdx) => {
       const venue = venues[venueIdx];
       return {
         id: crypto.randomUUID(),
         device_id: t.id,
-        group_id: groupId,
+        prompt,
         lat: venue.lat + (Math.random() - 0.5) * 0.001,
         lng: venue.lng + (Math.random() - 0.5) * 0.001,
         photo_url: placeholderPhoto,
@@ -85,21 +78,76 @@ export async function loadLocalDemoSeed() {
       };
     }),
   );
+}
 
-  const demoIds = new Set(travelers.map((t) => t.id));
+export async function loadLocalDemoSeed() {
+  const prompt = getTodaysPrompt();
+  const me = getDeviceId();
+  const allDemoIds = [...friends, ...strangers].map((t) => t.id);
+
+  const profiles: DeviceProfile[] = [
+    {
+      device_id: me,
+      code: friendCodeFromDeviceId(me),
+      display_name: "You",
+      created_at: new Date().toISOString(),
+    },
+    ...friends.map((t) => ({
+      device_id: t.id,
+      code: friendCodeFromDeviceId(t.id),
+      display_name: t.name,
+      created_at: new Date().toISOString(),
+    })),
+    ...strangers.map((t) => ({
+      device_id: t.id,
+      code: friendCodeFromDeviceId(t.id),
+      display_name: null,
+      created_at: new Date().toISOString(),
+    })),
+  ];
+
+  const friendships: Friendship[] = friends.map((t) => {
+    const [a, b] = me < t.id ? [me, t.id] : [t.id, me];
+    return {
+      id: crypto.randomUUID(),
+      a_device_id: a,
+      b_device_id: b,
+      created_at: new Date().toISOString(),
+    };
+  });
+
+  const checkins = [
+    ...makeCheckins(friends, prompt),
+    ...makeCheckins(strangers, prompt),
+  ];
+
   const existingCheckins = await localStore.getAllCheckins();
-  const keptCheckins = existingCheckins.filter((c) => !demoIds.has(c.device_id));
-  const existingGroups = (await localStore.listGroups()).filter(
-    (g) => g.id !== groupId,
+  const demoIdSet = new Set(allDemoIds);
+  const keptCheckins = existingCheckins.filter(
+    (c) => !demoIdSet.has(c.device_id),
   );
-  const existingMembers = (await localStore.listMembers()).filter(
-    (m) => m.group_id !== groupId && !demoIds.has(m.device_id),
+  const existingProfiles = (await localStore.listProfiles()).filter(
+    (p) => p.device_id === me || !demoIdSet.has(p.device_id),
   );
+  const existingFriendships = (await localStore.listFriendships()).filter(
+    (f) =>
+      !demoIdSet.has(f.a_device_id) && !demoIdSet.has(f.b_device_id),
+  );
+
+  // Dedupe "me" profile
+  const profileMap = new Map<string, DeviceProfile>();
+  for (const p of [...existingProfiles, ...profiles]) {
+    profileMap.set(p.device_id, p);
+  }
 
   await localStore.seed(
     [...keptCheckins, ...checkins],
-    [...existingGroups, group],
-    [...existingMembers, ...members],
+    Array.from(profileMap.values()),
+    [...existingFriendships, ...friendships],
   );
-  return { group, count: checkins.length };
+
+  return {
+    friendCodes: friends.map((t) => friendCodeFromDeviceId(t.id)),
+    count: checkins.length,
+  };
 }

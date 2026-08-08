@@ -11,13 +11,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getAllCheckins, getTodayCityCheckins, groupCheckinsIntoPaths } from "@/lib/api";
-import { detectCrossings } from "@/lib/crossings";
+import { getAllCheckins, getTodayCityCheckins } from "@/lib/api";
+import { getTodaysPrompt } from "@/lib/prompts";
 import type { CheckIn } from "@/lib/types";
 
 export function DashboardView() {
   const [today, setToday] = useState<CheckIn[]>([]);
   const [all, setAll] = useState<CheckIn[]>([]);
+  const prompt = getTodaysPrompt();
 
   useEffect(() => {
     getTodayCityCheckins().then(setToday);
@@ -35,8 +36,10 @@ export function DashboardView() {
     return buckets.filter((b) => b.count > 0 || today.length === 0);
   }, [today]);
 
-  const paths = useMemo(() => groupCheckinsIntoPaths(today, undefined, true), [today]);
-  const crossings = useMemo(() => detectCrossings(paths), [paths]);
+  const uniqueNoticers = useMemo(
+    () => new Set(today.map((c) => c.device_id)).size,
+    [today],
+  );
 
   const densest = useMemo(() => {
     const cells = new Map<string, number>();
@@ -56,27 +59,27 @@ export function DashboardView() {
         <div className="panel-kicker">City intelligence</div>
         <h1>Pulse</h1>
         <p className="lede">
-          Aggregate movement patterns — busiest hours, densest cells, paths that
-          nearly touched.
+          Where today&apos;s prompt (<em>{prompt}</em>) showed up — busiest
+          hours and densest spots. Aggregates only; no identities.
         </p>
       </div>
 
       <div className="stat-row">
         <article>
           <strong>{today.length}</strong>
-          <span>check-ins today</span>
+          <span>finds today</span>
         </article>
         <article>
-          <strong>{paths.length}</strong>
-          <span>distinct paths</span>
+          <strong>{uniqueNoticers}</strong>
+          <span>people noticing</span>
         </article>
         <article>
-          <strong>{crossings.length}</strong>
-          <span>near crossings</span>
+          <strong>{prompt}</strong>
+          <span>today&apos;s prompt</span>
         </article>
         <article>
           <strong>{all.length}</strong>
-          <span>all-time stops</span>
+          <span>all-time finds</span>
         </article>
       </div>
 

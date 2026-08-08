@@ -1,6 +1,7 @@
 # Pathline
-Every check-in is a photo and a place. Every day is a path.
-See your day — and your friends' days — as one shared story.
+Every day, everyone gets the same prompt — something small to notice
+("purple", "cool sneakers", "wings"). When you spot it, take a photo.
+It pins where you are. Little things, shared.
 
 ## Quick start
 
@@ -16,143 +17,154 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-**Without Supabase:** the app uses localStorage. On **Circle**, click **Load demo paths**, then open the group map / city / pulse pages.
+**Without Supabase:** the app uses localStorage. On **Friends**, click **Load demo paths**, then open the friends map / city / pulse pages.
 
 **With Supabase:** run `supabase/schema.sql` in the SQL editor, fill `.env.local`, then `npm run seed`.
 
 ### Routes
 | Route | Feature |
 | --- | --- |
-| `/check-in` | Photo + location check-in |
-| `/path` | Personal day path + replay |
-| `/group` | Create / join anonymous circle |
-| `/group/map` | Multi-color group paths + crossings |
-| `/city` | Public anonymized city layer |
+| `/` | Today's prompt + entry |
+| `/check-in` | Photo + location for today's prompt |
+| `/path` | Your day as a connected path |
+| `/friends` | Add friends · see their paths |
+| `/city` | Public map of individual finds (no identity links) |
 | `/dashboard` | City intelligence / Pulse |
 
 ---
 
 ## The Core Idea
-Check in whenever you want (aim for ~hourly, never forced) with one photo.
-At any point, your day's check-ins connect into a path on a map.
-Friends in your circle render as different colored paths on the same map —
-watch your day cross theirs, or not.
-Underneath it all, a public layer shows the whole city's paths, anonymized —
-this is what makes it a real Main Track submission, not just a friend group app.
+Everyone wakes up to the **same daily prompt** — a small thing to notice
+in the world. Whenever you see it, you check in with one photo; Pathline
+pins that moment to your location.
+
+- **You** see your own day's finds connected into a **path** — a rough
+  trace of where you went while hunting the prompt.
+- **Friends** can see each other's paths (colored lines linking their photos
+  in time order).
+- **Strangers** only see **individual pins** on the public city map. If you
+  posted three times today, a stranger cannot tell those three photos came
+  from the same person. No circle, no group blob — just finds.
+
+The point is not tracking yourself. It's noticing the little things —
+and sharing that noticing with people you choose.
+
+---
+
+## Visibility rules
+
+| Viewer | Sees |
+| --- | --- |
+| You | Your photos connected as a path |
+| A friend | Your path (line + pins) for today |
+| A stranger / city | Only isolated photo pins — never who posted, never a line linking one person's stops |
 
 ---
 
 ## Components
 
-### 1. Check-In Flow
-**What it does:** User taps "check in," takes one photo (camera or upload),
-optional caption, submits.
+### 1. Daily Prompt
+**What it does:** At the start of each day, every user sees the same prompt
+word or phrase (e.g. "purple", "cool sneakers", "wings"). The prompt drives
+what people look for and photograph.
+**Owns:** Prompt calendar / generator, home + check-in surface copy.
+**Tech:** Deterministic day → prompt map (or seeded list) so everyone shares
+the same prompt without a server round-trip.
+**Priority:** Build first alongside check-in — the product loop needs it.
+
+### 2. Check-In Flow
+**What it does:** User taps "check in," takes one photo (camera or upload)
+of today's prompt in the wild, optional caption, submits with location.
 **Owns:** Camera capture UI, geolocation grab, upload to storage, insert row.
 **Tech:** Next.js page/component, `getUserMedia` or native `<input capture>`,
 `browser-image-compression`, Supabase JS client.
 **Depends on:** Supabase Storage + `checkins` table existing.
-**Priority:** Build first. Nothing else works without this.
+**Priority:** Build with the prompt. Nothing else works without this.
 
-### 2. Anonymous Identity / Friend Groups
+### 3. Anonymous Identity / Friends
 **What it does:** No accounts — device-based anonymous ID generated on first
-load (localStorage). Friend groups are a shareable join code/link; joining a
-group just tags your device ID with a group ID.
-**Owns:** Device ID generation, group creation, group join flow, group membership table.
-**Tech:** Supabase table `groups`, `group_members`. UUID stored client-side.
-**Priority:** Build second, right after check-in flow works standalone.
+load (localStorage). Friends are pairwise: share a code/link; accepting tags
+your device as friends with theirs. There is **no circle / group**.
+**Owns:** Device ID generation, friend codes, friend list, friendship table.
+**Tech:** Supabase table `friendships` (or local store). UUID stored client-side.
+**Priority:** Build after check-in works standalone.
 
-### 3. Personal Day Path (single user)
+### 4. Personal Day Path (single user)
 **What it does:** Pulls all of one device's check-ins for today, orders by
 timestamp, draws a connecting line + photo pins on the map.
 **Owns:** Map rendering (single line), photo pin markers, timestamp labels.
 **Tech:** Mapbox GL JS / `react-map-gl`, a Supabase query filtered by
 `device_id` and today's date.
-**Priority:** Build third. This is your minimum viable demo.
+**Priority:** Build next. This is your minimum viable demo of "my hunt today."
 
-### 4. Multi-User Colored Paths (the group view)
-**What it does:** Given a group ID, pulls every member's check-ins for today,
-draws each person's path in a distinct color on one shared map.
-**Owns:** Color assignment per user, multi-line rendering, legend UI,
-"paths crossed here" detection (optional stretch: flag where/when two paths
-were spatially and temporally close).
-**Tech:** Mapbox multi-layer line rendering, a Supabase query grouped by
-`device_id` within a `group_id`.
-**Priority:** Build fourth. This is your actual demo centerpiece — the
-"watch our day happen together" moment.
+### 5. Friends' Paths
+**What it does:** For each friend, pull today's check-ins and draw their path
+in a distinct color on one shared map — so you can see roughly where they
+went while chasing the prompt.
+**Owns:** Color assignment per friend, multi-line rendering, legend UI.
+**Tech:** Mapbox multi-layer line rendering, queries for friend `device_id`s.
+**Priority:** Core social moment. Replaces the old circle/group map.
 
-### 5. Public City Layer (Main Track requirement)
-**What it does:** A public, no-login page showing every check-in in the city
-today as anonymized colored lines — no names, no group info, just the shape
-of the whole city's movement. This is what makes the project legible to a
-stranger and eligible for the Main Track.
-**Owns:** A separate map view, pulling all `checkins` regardless of group,
-rendered without any identity attached.
-**Tech:** Same Mapbox setup as #4, different (unauthenticated) query —
-select all check-ins, strip device/group info before rendering.
-**Priority:** Build fifth, but don't skip it — this is the piece that makes
-the whole project legitimate for judging, not optional polish.
+### 6. Public City Layer (stranger view)
+**What it does:** A public, no-login page showing every find in the city
+today as **individual pins** — photos on the map, no paths, no names, no
+way to tell which pins belong to the same stranger. This is what makes the
+project legible to anyone and eligible for Main Track.
+**Owns:** City map view that deliberately does **not** group by `device_id`
+when drawing lines (pins only; identity stripped).
+**Tech:** Same Mapbox setup, unauthenticated query — select check-ins, strip
+device info before render, never connect stranger pins into paths.
+**Priority:** Don't skip — this is the privacy-preserving public layer.
 
-### 6. Path Replay ("Course Path" feature)
-**What it does:** Instead of showing the full day's path as a static line,
-animate it drawing itself in over time — Strava's route-replay effect.
-Applies to both personal and group views.
-**Owns:** A simple animation loop that reveals the path segment-by-segment
-based on check-in timestamps.
-**Tech:** Mapbox `LineLayer` with a progressively updated `data` prop, driven
-by a `requestAnimationFrame` or timed interval.
-**Priority:** Build sixth. This is a polish feature — real demo impact, but
-only after 1–5 work. Cut first if time runs short.
+### 7. Path Replay ("Course Path" feature)
+**What it does:** Animate a friend's (or your) path drawing itself over
+time — Strava-style replay. Applies to personal and friends views only
+(not city pins).
+**Owns:** Animation loop revealing path segment-by-segment by timestamp.
+**Tech:** Mapbox `LineLayer` with progressively updated `data`.
+**Priority:** Polish — after 1–6 work. Cut first if time runs short.
 
-### 7. Data Intelligence Dashboard
-**What it does:** Aggregate, city-level stats surfaced visually — busiest
-check-in times, densest areas, how many paths crossed today, city-wide
-movement patterns.
-**Owns:** A dashboard page, a few aggregate SQL queries, chart/heatmap rendering.
-**Tech:** Recharts for charts, Mapbox `heatmap-layer` for density, direct
-Supabase aggregate queries (`GROUP BY`, `COUNT`).
-**Priority:** Build seventh. This is your TECHNATION track deliverable —
-needed, but only after the core loop actually works.
+### 8. Data Intelligence Dashboard
+**What it does:** Aggregate, city-level stats — busiest check-in times,
+densest areas, how many finds today, where the prompt showed up most.
+**Owns:** Dashboard page, aggregate queries, chart/heatmap rendering.
+**Tech:** Recharts, Mapbox heatmap, Supabase aggregates.
+**Priority:** TECHNATION deliverable — after the core loop works.
 
-### 8. Reve Visual Assets
-**What it does:** All the illustrated, brand-defining visuals — map marker
-icons, path styling reference, onboarding illustration, dashboard chart
-backgrounds, group creation flow art.
-**Owns:** Static image/SVG assets only — generated ahead of time, not called
-live at runtime.
-**Tech:** Reve (used as a design tool during downtime, not an API
-integration in the app itself).
-**Priority:** Run in parallel the entire build, starting hour 1. Whoever
-isn't needed for backend/core loop should be generating these continuously.
+### 9. Reve Visual Assets
+**What it does:** Brand visuals — map markers, path styling, onboarding,
+prompt cards, dashboard backgrounds.
+**Owns:** Static image/SVG assets only.
+**Tech:** Reve as a design tool (not a runtime API).
+**Priority:** Parallel throughout the build.
 
-### 9. Seeding Script
-**What it does:** Generates realistic fake check-ins (with real venue
-coordinates) so the demo map isn't empty. Should include several distinct
-"paths" across a few hours so the group view has something to show
-immediately.
-**Owns:** A one-off script/SQL insert batch, run before the demo, not part
-of the live app.
-**Tech:** Plain Node script or SQL insert statements against Supabase.
-**Priority:** Build in the last few hours, but plan the data you'll need
-(which venue spots, how many fake users) well before then.
+### 10. Seeding Script
+**What it does:** Fake check-ins (real venue coordinates) so the demo map
+isn't empty — several friends' paths plus many stranger pins for the city.
+**Owns:** One-off script / in-app demo loader.
+**Tech:** Node script or SQL against Supabase; localStorage demo button.
+**Priority:** Near the end, before rehearsal.
 
 ---
 
 ## Build Order Summary
-1. Check-in flow (camera + upload + save)
-2. Anonymous ID + groups
-3. Personal day path (single line on map)
-4. Multi-user colored group paths — **this is the core demo moment**
-5. Public city layer — **this is what makes it Main Track eligible, don't skip**
-6. Path replay animation (polish)
-7. Data dashboard (TECHNATION deliverable)
-8. Reve assets (parallel, throughout)
-9. Seed data (near the end, before rehearsal)
+1. Daily prompt + check-in (camera + upload + save)
+2. Anonymous ID + friends (no circle)
+3. Personal day path (connected line)
+4. Friends' paths — **core social demo**
+5. Public city pins (unlinked) — **Main Track / stranger privacy**
+6. Path replay (friends / self only)
+7. Data dashboard (TECHNATION)
+8. Reve assets (parallel)
+9. Seed data (before rehearsal)
 
 ## Non-Negotiables
 - Check-ins are **opt-in, never forced on a timer.** No hourly push-lock, no
-penalty for skipping an hour. This avoids the surveillance criticism outright.
-- The **public city layer must exist and must be genuinely visitable by
-someone with no account and no group.** This is the difference between a
-Main Track submission and a private group chat app.
-- Every check-in requires a **photo.** That's the literal human-input
-requirement — don't let this quietly become location-only.
+  penalty for skipping. Spot the prompt when you spot it.
+- Every check-in requires a **photo** of today's prompt in the world.
+- **No circle / group.** Social graph is friends only.
+- On the **city / stranger layer**, pins must stay **unlinked** — never draw
+  a path that reveals which photos belong to the same unknown person.
+- The **public city layer must exist** and be visitable with no account and
+  no friends. That keeps this a real Main Track product, not a private
+  friends-only app.

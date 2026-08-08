@@ -7,8 +7,9 @@ import {
   storageMode,
   uploadCheckInPhoto,
 } from "@/lib/api";
-import { getActiveGroupId, getDeviceId } from "@/lib/device";
+import { getDeviceId } from "@/lib/device";
 import { CITY_CENTER, getCurrentPosition } from "@/lib/geo";
+import { getTodaysPrompt } from "@/lib/prompts";
 
 type Status = "idle" | "locating" | "uploading" | "done" | "error";
 
@@ -23,6 +24,7 @@ export function CheckInForm() {
     null,
   );
   const [useDemoLocation, setUseDemoLocation] = useState(false);
+  const prompt = getTodaysPrompt();
 
   useEffect(() => {
     getDeviceId();
@@ -68,7 +70,7 @@ export function CheckInForm() {
     }
 
     setStatus("uploading");
-    setMessage("Saving your check-in…");
+    setMessage("Saving your find…");
 
     try {
       let position = coords;
@@ -85,7 +87,7 @@ export function CheckInForm() {
       const photoUrl = await uploadCheckInPhoto(file, deviceId);
       await createCheckIn({
         device_id: deviceId,
-        group_id: getActiveGroupId(),
+        prompt,
         lat: position.lat,
         lng: position.lng,
         photo_url: photoUrl,
@@ -93,7 +95,7 @@ export function CheckInForm() {
       });
 
       setStatus("done");
-      setMessage("Checked in. Your path just grew.");
+      setMessage("Pinned. Your path just grew.");
       setFile(null);
       setPreview(null);
       setCaption("");
@@ -106,11 +108,13 @@ export function CheckInForm() {
 
   return (
     <div className="panel checkin-panel">
-      <div className="panel-kicker">Opt-in · never forced</div>
-      <h1>Check in</h1>
+      <div className="panel-kicker">Today&apos;s prompt</div>
+      <h1>
+        Find <em>{prompt}</em>
+      </h1>
       <p className="lede">
-        One photo. One place. That&apos;s the whole move — no hourly lock, no
-        penalty for skipping.
+        Spot it in the world, take one photo, pin where you are. Opt-in only —
+        whenever you notice it.
       </p>
 
       <div className="photo-stage">
@@ -123,7 +127,7 @@ export function CheckInForm() {
             className="photo-placeholder"
             onClick={() => inputRef.current?.click()}
           >
-            <span>Take or upload one photo</span>
+            <span>Photo of today&apos;s {prompt}</span>
           </button>
         )}
       </div>
@@ -142,7 +146,7 @@ export function CheckInForm() {
         <input
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          placeholder="Where are you right now?"
+          placeholder="Where did you spot it?"
           maxLength={120}
         />
       </label>
@@ -168,7 +172,7 @@ export function CheckInForm() {
           onClick={submit}
           disabled={!file || status === "uploading" || status === "locating"}
         >
-          {status === "uploading" ? "Saving…" : "Check in"}
+          {status === "uploading" ? "Saving…" : "Pin it"}
         </button>
       </div>
 

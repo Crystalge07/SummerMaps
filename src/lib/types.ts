@@ -1,7 +1,7 @@
 export type CheckIn = {
   id: string;
   device_id: string;
-  group_id: string | null;
+  prompt: string | null;
   lat: number;
   lng: number;
   photo_url: string;
@@ -9,19 +9,19 @@ export type CheckIn = {
   created_at: string;
 };
 
-export type Group = {
-  id: string;
+/** Public profile for friend codes — no accounts, just a shareable handle. */
+export type DeviceProfile = {
+  device_id: string;
   code: string;
-  name: string;
+  display_name: string | null;
   created_at: string;
 };
 
-export type GroupMember = {
+export type Friendship = {
   id: string;
-  group_id: string;
-  device_id: string;
-  display_color: string | null;
-  joined_at: string;
+  a_device_id: string;
+  b_device_id: string;
+  created_at: string;
 };
 
 export type PathSeries = {
@@ -29,11 +29,13 @@ export type PathSeries = {
   color: string;
   label: string;
   checkins: CheckIn[];
+  /** When false, map shows pins only (stranger / city view). Default true. */
+  connect?: boolean;
 };
 
 export type CreateCheckInInput = {
   device_id: string;
-  group_id?: string | null;
+  prompt?: string | null;
   lat: number;
   lng: number;
   photo_url: string;

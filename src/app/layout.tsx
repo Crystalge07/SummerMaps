@@ -16,7 +16,7 @@ const syne = Syne({
 export const metadata: Metadata = {
   title: "Pathline",
   description:
-    "Every check-in is a photo and a place. Every day is a path — yours, your circle's, and the city's.",
+    "A shared daily prompt. Photo the little things, pin where you found them. Friends see paths; strangers see only individual finds.",
 };
 
 export default function RootLayout({

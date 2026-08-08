@@ -1,36 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { storageMode } from "@/lib/api";
 import { loadLocalDemoSeed } from "@/lib/demoSeed";
-import { setActiveGroupId } from "@/lib/device";
+import { storageMode } from "@/lib/api";
 
-export function DemoSeedButton() {
+export function DemoSeedButton({ onLoaded }: { onLoaded?: () => void }) {
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  if (storageMode() === "supabase") {
-    return (
-      <p className="seed-note">
-        Supabase mode: run <code>npm run seed</code> after applying{" "}
-        <code>supabase/schema.sql</code>.
-      </p>
-    );
-  }
+  if (storageMode() === "supabase") return null;
 
   return (
-    <div>
+    <div className="demo-seed">
       <button
         type="button"
         className="btn ghost"
+        disabled={busy}
         onClick={async () => {
-          const { group, count } = await loadLocalDemoSeed();
-          setActiveGroupId(group.id);
-          setMsg(`Loaded ${count} demo stops. Circle code ${group.code}.`);
+          setBusy(true);
+          try {
+            const { friendCodes, count } = await loadLocalDemoSeed();
+            setMsg(
+              `Loaded ${count} finds. Demo friends: ${friendCodes.join(", ")}.`,
+            );
+            onLoaded?.();
+          } catch (err) {
+            setMsg(err instanceof Error ? err.message : "Seed failed.");
+          } finally {
+            setBusy(false);
+          }
         }}
       >
         Load demo paths
       </button>
-      {msg && <p className="seed-note">{msg}</p>}
+      {msg && <p className="meta">{msg}</p>}
     </div>
   );
 }

@@ -1,9 +1,14 @@
-import type { CheckIn, CreateCheckInInput, Group, GroupMember } from "./types";
-import { colorForDevice } from "./colors";
+import type {
+  CheckIn,
+  CreateCheckInInput,
+  DeviceProfile,
+  Friendship,
+} from "./types";
+import { friendCodeFromDeviceId } from "./friendCode";
 
 const CHECKINS_KEY = "pathline_checkins";
-const GROUPS_KEY = "pathline_groups";
-const MEMBERS_KEY = "pathline_members";
+const PROFILES_KEY = "pathline_profiles";
+const FRIENDSHIPS_KEY = "pathline_friendships";
 
 function read<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -37,13 +42,29 @@ function isToday(iso: string) {
   return iso >= start && iso <= end;
 }
 
+function ensureProfile(deviceId: string): DeviceProfile {
+  const profiles = read<DeviceProfile[]>(PROFILES_KEY, []);
+  const existing = profiles.find((p) => p.device_id === deviceId);
+  if (existing) return existing;
+  const profile: DeviceProfile = {
+    device_id: deviceId,
+    code: friendCodeFromDeviceId(deviceId),
+    display_name: null,
+    created_at: new Date().toISOString(),
+  };
+  profiles.push(profile);
+  write(PROFILES_KEY, profiles);
+  return profile;
+}
+
 export const localStore = {
   async createCheckIn(input: CreateCheckInInput): Promise<CheckIn> {
+    ensureProfile(input.device_id);
     const checkins = read<CheckIn[]>(CHECKINS_KEY, []);
     const row: CheckIn = {
       id: uid(),
       device_id: input.device_id,
-      group_id: input.group_id ?? null,
+      prompt: input.prompt ?? null,
       lat: input.lat,
       lng: input.lng,
       photo_url: input.photo_url,
@@ -61,17 +82,10 @@ export const localStore = {
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
   },
 
-  async getTodayByGroup(groupId: string): Promise<CheckIn[]> {
-    const members = read<GroupMember[]>(MEMBERS_KEY, []).filter(
-      (m) => m.group_id === groupId,
-    );
-    const memberIds = new Set(members.map((m) => m.device_id));
+  async getTodayByDevices(deviceIds: string[]): Promise<CheckIn[]> {
+    const set = new Set(deviceIds);
     return read<CheckIn[]>(CHECKINS_KEY, [])
-      .filter(
-        (c) =>
-          isToday(c.created_at) &&
-          (c.group_id === groupId || memberIds.has(c.device_id)),
-      )
+      .filter((c) => set.has(c.device_id) && isToday(c.created_at))
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
   },
 
@@ -87,54 +101,70 @@ export const localStore = {
     );
   },
 
-  async createGroup(name: string): Promise<Group> {
-    const groups = read<Group[]>(GROUPS_KEY, []);
-    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const group: Group = {
-      id: uid(),
-      code,
-      name,
-      created_at: new Date().toISOString(),
-    };
-    groups.push(group);
-    write(GROUPS_KEY, groups);
-    return group;
+  async ensureProfile(deviceId: string): Promise<DeviceProfile> {
+    return ensureProfile(deviceId);
   },
 
-  async getGroupByCode(code: string): Promise<Group | null> {
+  async getProfileByCode(code: string): Promise<DeviceProfile | null> {
+    const normalized = code.trim().toUpperCase();
     return (
-      read<Group[]>(GROUPS_KEY, []).find(
-        (g) => g.code.toUpperCase() === code.toUpperCase(),
+      read<DeviceProfile[]>(PROFILES_KEY, []).find(
+        (p) => p.code.toUpperCase() === normalized,
       ) ?? null
     );
   },
 
-  async getGroupById(id: string): Promise<Group | null> {
-    return read<Group[]>(GROUPS_KEY, []).find((g) => g.id === id) ?? null;
+  async getProfileByDevice(deviceId: string): Promise<DeviceProfile | null> {
+    return (
+      read<DeviceProfile[]>(PROFILES_KEY, []).find(
+        (p) => p.device_id === deviceId,
+      ) ?? null
+    );
   },
 
-  async joinGroup(groupId: string, deviceId: string): Promise<GroupMember> {
-    const members = read<GroupMember[]>(MEMBERS_KEY, []);
-    const existing = members.find(
-      (m) => m.group_id === groupId && m.device_id === deviceId,
+  async listProfiles(): Promise<DeviceProfile[]> {
+    return read<DeviceProfile[]>(PROFILES_KEY, []);
+  },
+
+  async addFriendship(
+    aDeviceId: string,
+    bDeviceId: string,
+  ): Promise<Friendship> {
+    if (aDeviceId === bDeviceId) {
+      throw new Error("You can't friend yourself.");
+    }
+    ensureProfile(aDeviceId);
+    ensureProfile(bDeviceId);
+    const friendships = read<Friendship[]>(FRIENDSHIPS_KEY, []);
+    const existing = friendships.find(
+      (f) =>
+        (f.a_device_id === aDeviceId && f.b_device_id === bDeviceId) ||
+        (f.a_device_id === bDeviceId && f.b_device_id === aDeviceId),
     );
     if (existing) return existing;
-    const member: GroupMember = {
+    const row: Friendship = {
       id: uid(),
-      group_id: groupId,
-      device_id: deviceId,
-      display_color: colorForDevice(deviceId),
-      joined_at: new Date().toISOString(),
+      a_device_id: aDeviceId,
+      b_device_id: bDeviceId,
+      created_at: new Date().toISOString(),
     };
-    members.push(member);
-    write(MEMBERS_KEY, members);
-    return member;
+    friendships.push(row);
+    write(FRIENDSHIPS_KEY, friendships);
+    return row;
   },
 
-  async getMembers(groupId: string): Promise<GroupMember[]> {
-    return read<GroupMember[]>(MEMBERS_KEY, []).filter(
-      (m) => m.group_id === groupId,
-    );
+  async getFriendDeviceIds(deviceId: string): Promise<string[]> {
+    return read<Friendship[]>(FRIENDSHIPS_KEY, [])
+      .filter(
+        (f) => f.a_device_id === deviceId || f.b_device_id === deviceId,
+      )
+      .map((f) =>
+        f.a_device_id === deviceId ? f.b_device_id : f.a_device_id,
+      );
+  },
+
+  async listFriendships(): Promise<Friendship[]> {
+    return read<Friendship[]>(FRIENDSHIPS_KEY, []);
   },
 
   async uploadPhoto(file: Blob, filename: string): Promise<string> {
@@ -144,21 +174,16 @@ export const localStore = {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-    // Keep filename in the URL fragment for debugging; payload is the data URL.
     return `${dataUrl}#${filename}`;
   },
 
-  async listGroups(): Promise<Group[]> {
-    return read<Group[]>(GROUPS_KEY, []);
-  },
-
-  async listMembers(): Promise<GroupMember[]> {
-    return read<GroupMember[]>(MEMBERS_KEY, []);
-  },
-
-  async seed(checkins: CheckIn[], groups: Group[], members: GroupMember[]) {
+  async seed(
+    checkins: CheckIn[],
+    profiles: DeviceProfile[],
+    friendships: Friendship[],
+  ) {
     write(CHECKINS_KEY, checkins);
-    write(GROUPS_KEY, groups);
-    write(MEMBERS_KEY, members);
+    write(PROFILES_KEY, profiles);
+    write(FRIENDSHIPS_KEY, friendships);
   },
 };

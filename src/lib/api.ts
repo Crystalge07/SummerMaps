@@ -1,11 +1,12 @@
 import { colorForDevice, shortLabel } from "./colors";
+import { friendCodeFromDeviceId } from "./friendCode";
 import { localStore } from "./localStore";
 import { getSupabase, isSupabaseConfigured } from "./supabase";
 import type {
   CheckIn,
   CreateCheckInInput,
-  Group,
-  GroupMember,
+  DeviceProfile,
+  Friendship,
   PathSeries,
 } from "./types";
 
@@ -44,11 +45,13 @@ export async function createCheckIn(
   const supabase = getSupabase();
   if (!supabase) return localStore.createCheckIn(input);
 
+  await ensureDeviceProfile(input.device_id);
+
   const { data, error } = await supabase
     .from("checkins")
     .insert({
       device_id: input.device_id,
-      group_id: input.group_id ?? null,
+      prompt: input.prompt ?? null,
       lat: input.lat,
       lng: input.lng,
       photo_url: input.photo_url,
@@ -77,20 +80,12 @@ export async function getTodayCheckinsForDevice(
   return (data ?? []) as CheckIn[];
 }
 
-export async function getTodayCheckinsForGroup(
-  groupId: string,
+export async function getTodayCheckinsForDevices(
+  deviceIds: string[],
 ): Promise<CheckIn[]> {
-  const supabase = getSupabase();
-  if (!supabase) return localStore.getTodayByGroup(groupId);
-
-  const { data: members, error: memberError } = await supabase
-    .from("group_members")
-    .select("device_id")
-    .eq("group_id", groupId);
-  if (memberError) throw memberError;
-
-  const deviceIds = (members ?? []).map((m) => m.device_id as string);
   if (deviceIds.length === 0) return [];
+  const supabase = getSupabase();
+  if (!supabase) return localStore.getTodayByDevices(deviceIds);
 
   const { data, error } = await supabase
     .from("checkins")
@@ -109,7 +104,7 @@ export async function getTodayCityCheckins(): Promise<CheckIn[]> {
 
   const { data, error } = await supabase
     .from("checkins")
-    .select("id, lat, lng, photo_url, caption, created_at, device_id, group_id")
+    .select("id, lat, lng, photo_url, caption, created_at, device_id, prompt")
     .gte("created_at", startOfTodayISO())
     .lte("created_at", endOfTodayISO())
     .order("created_at", { ascending: true });
@@ -129,85 +124,100 @@ export async function getAllCheckins(): Promise<CheckIn[]> {
   return (data ?? []) as CheckIn[];
 }
 
-export async function createGroup(name: string): Promise<Group> {
-  const supabase = getSupabase();
-  if (!supabase) return localStore.createGroup(name);
-
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-  const { data, error } = await supabase
-    .from("groups")
-    .insert({ name, code })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Group;
-}
-
-export async function getGroupByCode(code: string): Promise<Group | null> {
-  const supabase = getSupabase();
-  if (!supabase) return localStore.getGroupByCode(code);
-
-  const { data, error } = await supabase
-    .from("groups")
-    .select("*")
-    .eq("code", code.toUpperCase())
-    .maybeSingle();
-  if (error) throw error;
-  return (data as Group) ?? null;
-}
-
-export async function getGroupById(id: string): Promise<Group | null> {
-  const supabase = getSupabase();
-  if (!supabase) return localStore.getGroupById(id);
-
-  const { data, error } = await supabase
-    .from("groups")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw error;
-  return (data as Group) ?? null;
-}
-
-export async function joinGroup(
-  groupId: string,
+export async function ensureDeviceProfile(
   deviceId: string,
-): Promise<GroupMember> {
+  displayName?: string | null,
+): Promise<DeviceProfile> {
   const supabase = getSupabase();
-  if (!supabase) return localStore.joinGroup(groupId, deviceId);
+  if (!supabase) return localStore.ensureProfile(deviceId);
 
+  const code = friendCodeFromDeviceId(deviceId);
   const { data, error } = await supabase
-    .from("group_members")
+    .from("device_profiles")
     .upsert(
       {
-        group_id: groupId,
         device_id: deviceId,
-        display_color: colorForDevice(deviceId),
+        code,
+        display_name: displayName ?? null,
       },
-      { onConflict: "group_id,device_id" },
+      { onConflict: "device_id" },
     )
     .select()
     .single();
   if (error) throw error;
-  return data as GroupMember;
+  return data as DeviceProfile;
 }
 
-export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
+export async function getProfileByCode(
+  code: string,
+): Promise<DeviceProfile | null> {
   const supabase = getSupabase();
-  if (!supabase) return localStore.getMembers(groupId);
+  if (!supabase) return localStore.getProfileByCode(code);
 
   const { data, error } = await supabase
-    .from("group_members")
+    .from("device_profiles")
     .select("*")
-    .eq("group_id", groupId);
+    .eq("code", code.trim().toUpperCase())
+    .maybeSingle();
   if (error) throw error;
-  return (data ?? []) as GroupMember[];
+  return (data as DeviceProfile) ?? null;
 }
 
+export async function getMyProfile(deviceId: string): Promise<DeviceProfile> {
+  return ensureDeviceProfile(deviceId);
+}
+
+export async function addFriend(
+  myDeviceId: string,
+  friendCode: string,
+): Promise<Friendship> {
+  const profile = await getProfileByCode(friendCode);
+  if (!profile) throw new Error("No one found with that friend code.");
+  if (profile.device_id === myDeviceId) {
+    throw new Error("You can't friend yourself.");
+  }
+
+  const supabase = getSupabase();
+  if (!supabase) return localStore.addFriendship(myDeviceId, profile.device_id);
+
+  await ensureDeviceProfile(myDeviceId);
+
+  const [a, b] =
+    myDeviceId < profile.device_id
+      ? [myDeviceId, profile.device_id]
+      : [profile.device_id, myDeviceId];
+
+  const { data, error } = await supabase
+    .from("friendships")
+    .upsert(
+      { a_device_id: a, b_device_id: b },
+      { onConflict: "a_device_id,b_device_id" },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Friendship;
+}
+
+export async function getFriendDeviceIds(deviceId: string): Promise<string[]> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.getFriendDeviceIds(deviceId);
+
+  const { data, error } = await supabase
+    .from("friendships")
+    .select("a_device_id, b_device_id")
+    .or(`a_device_id.eq.${deviceId},b_device_id.eq.${deviceId}`);
+  if (error) throw error;
+
+  return (data ?? []).map((f) =>
+    f.a_device_id === deviceId ? f.b_device_id : f.a_device_id,
+  );
+}
+
+/** Connect check-ins into paths (for self + friends). */
 export function groupCheckinsIntoPaths(
   checkins: CheckIn[],
-  members?: GroupMember[],
-  anonymize = false,
+  labels?: Map<string, string>,
 ): PathSeries[] {
   const byDevice = new Map<string, CheckIn[]>();
   for (const c of checkins) {
@@ -216,23 +226,36 @@ export function groupCheckinsIntoPaths(
     byDevice.set(c.device_id, list);
   }
 
-  const colorMap = new Map(
-    (members ?? []).map((m) => [
-      m.device_id,
-      m.display_color ?? colorForDevice(m.device_id),
-    ]),
-  );
-
   let i = 0;
   return Array.from(byDevice.entries()).map(([deviceId, rows]) => {
-    const color = colorMap.get(deviceId) ?? colorForDevice(deviceId, i++);
+    const color = colorForDevice(deviceId, i++);
     return {
       deviceId,
       color,
-      label: anonymize ? `Path ${i}` : shortLabel(deviceId),
+      label: labels?.get(deviceId) ?? shortLabel(deviceId),
       checkins: rows.sort((a, b) => a.created_at.localeCompare(b.created_at)),
+      connect: true,
     };
   });
+}
+
+/**
+ * City / stranger view: each find is its own pin.
+ * Never connect pins by device — strangers can't tell who posted what.
+ */
+export function checkinsAsUnlinkedPins(checkins: CheckIn[]): PathSeries[] {
+  return checkins.map((c, idx) => ({
+    deviceId: `pin-${c.id}`,
+    color: colorForDevice(c.id, idx),
+    label: `Find ${idx + 1}`,
+    checkins: [
+      {
+        ...c,
+        device_id: "anon",
+      },
+    ],
+    connect: false,
+  }));
 }
 
 export function storageMode(): "supabase" | "local" {

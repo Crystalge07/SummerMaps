@@ -1,21 +1,29 @@
+"use client";
+
 import Link from "next/link";
+import { getTodaysPrompt } from "@/lib/prompts";
 
 export default function Home() {
+  const prompt = getTodaysPrompt();
+
   return (
     <main className="hero">
       <div className="hero-inner">
         <p className="hero-brand">Pathline</p>
-        <h1>Every check-in is a photo and a place.</h1>
+        <h1>
+          Today, notice <em>{prompt}</em>.
+        </h1>
         <p>
-          See your day — and your friends&apos; days — as one shared story on a
-          map. The public city layer shows the movement of everyone, anonymized.
+          Everyone gets the same prompt. When you spot it, take a photo — it
+          pins where you are. Friends see your path; strangers only see
+          individual finds.
         </p>
         <div className="cta-row">
           <Link href="/check-in" className="btn primary">
-            Check in
+            Spot it
           </Link>
           <Link href="/city" className="btn ghost">
-            Watch the city
+            City finds
           </Link>
         </div>
       </div>

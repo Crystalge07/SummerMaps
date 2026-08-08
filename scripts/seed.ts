@@ -3,7 +3,7 @@
  *
  * Usage:
  *   - With Supabase: set env vars, then `npm run seed`
- *   - Without: prints JSON you can paste, or use the in-app "Load demo paths" button
+ *   - Without: use the in-app "Load demo paths" button on Friends
  */
 import { createClient } from "@supabase/supabase-js";
 
@@ -22,33 +22,52 @@ const venues = [
   { name: "Cabbagetown", lat: 43.6662, lng: -79.3634 },
 ];
 
-const travelers = [
+const friends = [
   {
     id: "11111111-1111-4111-8111-111111111111",
-    color: "#E85D4C",
+    name: "Alex",
     stops: [0, 1, 2, 11],
   },
   {
     id: "22222222-2222-4222-8222-222222222222",
-    color: "#1F8A70",
+    name: "Sam",
     stops: [4, 5, 6, 7],
   },
+];
+
+const strangers = [
   {
     id: "33333333-3333-4333-8333-333333333333",
-    color: "#F4A261",
     stops: [10, 9, 8, 7],
   },
   {
     id: "44444444-4444-4444-8444-444444444444",
-    color: "#3D5A80",
     stops: [3, 4, 0, 10],
   },
 ];
+
+function friendCode(deviceId: string) {
+  return deviceId.replace(/-/g, "").slice(0, 6).toUpperCase();
+}
 
 function todayAt(hour: number, minute = 0) {
   const d = new Date();
   d.setHours(hour, minute, 0, 0);
   return d.toISOString();
+}
+
+function dayPrompt() {
+  const prompts = [
+    "purple",
+    "cool sneakers",
+    "wings",
+    "something yellow",
+    "handwritten signs",
+  ];
+  const key = new Date().toISOString().slice(0, 10);
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return prompts[h % prompts.length];
 }
 
 const placeholderPhoto =
@@ -64,29 +83,23 @@ const placeholderPhoto =
   );
 
 async function main() {
-  const groupId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-  const group = {
-    id: groupId,
-    code: "DEMO01",
-    name: "Demo Circle",
-    created_at: new Date().toISOString(),
-  };
+  const prompt = dayPrompt();
+  const people = [...friends, ...strangers];
 
-  const members = travelers.map((t) => ({
-    id: crypto.randomUUID(),
-    group_id: groupId,
+  const profiles = people.map((t) => ({
     device_id: t.id,
-    display_color: t.color,
-    joined_at: new Date().toISOString(),
+    code: friendCode(t.id),
+    display_name: "name" in t ? t.name : null,
+    created_at: new Date().toISOString(),
   }));
 
-  const checkins = travelers.flatMap((t, travelerIdx) =>
+  const checkins = people.flatMap((t, travelerIdx) =>
     t.stops.map((venueIdx, stopIdx) => {
       const venue = venues[venueIdx];
       return {
         id: crypto.randomUUID(),
         device_id: t.id,
-        group_id: groupId,
+        prompt,
         lat: venue.lat + (Math.random() - 0.5) * 0.001,
         lng: venue.lng + (Math.random() - 0.5) * 0.001,
         photo_url: placeholderPhoto,
@@ -102,25 +115,31 @@ async function main() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    console.log("No Supabase env — writing scripts/seed-local.json for in-app import.");
-    const fs = await import("node:fs");
-    fs.writeFileSync(
-      "scripts/seed-local.json",
-      JSON.stringify({ group, members, checkins }, null, 2),
+    console.log(
+      "No Supabase env — use Friends → Load demo paths in the app for localStorage seed.",
     );
-    console.log(`Wrote ${checkins.length} check-ins for group code DEMO01`);
+    console.log(
+      `Would seed ${checkins.length} finds for prompt "${prompt}". Friend codes: ${friends.map((f) => friendCode(f.id)).join(", ")}`,
+    );
     return;
   }
 
   const supabase = createClient(url, key);
 
-  await supabase.from("groups").upsert(group);
-  await supabase.from("group_members").upsert(members);
-  await supabase.from("checkins").delete().eq("group_id", groupId);
+  await supabase.from("device_profiles").upsert(profiles);
+  await supabase
+    .from("checkins")
+    .delete()
+    .in(
+      "device_id",
+      people.map((p) => p.id),
+    );
   const { error } = await supabase.from("checkins").insert(checkins);
   if (error) throw error;
 
-  console.log(`Seeded ${checkins.length} check-ins. Join code: DEMO01`);
+  console.log(
+    `Seeded ${checkins.length} finds for prompt "${prompt}". Friend codes: ${friends.map((f) => friendCode(f.id)).join(", ")}`,
+  );
 }
 
 main().catch((err) => {

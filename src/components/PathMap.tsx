@@ -73,6 +73,7 @@ export function PathMap({
         <NavigationControl position="top-right" />
 
         {visiblePaths.map((path) => {
+          if (path.connect === false) return null;
           if (path.checkins.length < 2) return null;
           const geojson = {
             type: "Feature" as const,
@@ -150,16 +151,19 @@ function FallbackList({ paths }: { paths: PathSeries[] }) {
       {paths.map((p) => (
         <li key={p.deviceId}>
           <span className="swatch" style={{ background: p.color }} />
-          {p.label}: {p.checkins.length} check-ins
-          <ol>
-            {p.checkins.map((c) => (
-              <li key={c.id}>
-                {format(new Date(c.created_at), "h:mm a")} · {c.lat.toFixed(4)},{" "}
-                {c.lng.toFixed(4)}
-                {c.caption ? ` — ${c.caption}` : ""}
-              </li>
-            ))}
-          </ol>
+          {p.label}: {p.checkins.length}{" "}
+          {p.connect === false ? "find" : "check-ins"}
+          {p.connect !== false && (
+            <ol>
+              {p.checkins.map((c) => (
+                <li key={c.id}>
+                  {format(new Date(c.created_at), "h:mm a")} · {c.lat.toFixed(4)},{" "}
+                  {c.lng.toFixed(4)}
+                  {c.caption ? ` — ${c.caption}` : ""}
+                </li>
+              ))}
+            </ol>
+          )}
         </li>
       ))}
     </ul>

@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getTodayCheckinsForDevice, groupCheckinsIntoPaths } from "@/lib/api";
+import { getTodayCheckinsForDevice } from "@/lib/api";
 import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
-import type { CheckIn } from "@/lib/types";
+import { getTodaysPrompt } from "@/lib/prompts";
+import type { CheckIn, PathSeries } from "@/lib/types";
 import { CheckInDetail } from "./CheckInDetail";
 import { Legend } from "./Legend";
 import { PathMap } from "./PathMap";
 import { PathReplayControls } from "./PathReplayControls";
 
 export function PersonalPathView() {
-  const [paths, setPaths] = useState(groupCheckinsIntoPaths([]));
+  const [paths, setPaths] = useState<PathSeries[]>([]);
   const [selected, setSelected] = useState<CheckIn | null>(null);
   const [progress, setProgress] = useState(1);
   const [loading, setLoading] = useState(true);
+  const prompt = getTodaysPrompt();
 
   useEffect(() => {
     const deviceId = getDeviceId();
@@ -26,6 +28,7 @@ export function PersonalPathView() {
             color: colorForDevice(deviceId),
             label: "Your day",
             checkins: rows,
+            connect: true,
           },
         ]);
       })
@@ -35,20 +38,24 @@ export function PersonalPathView() {
   return (
     <div className="map-page">
       <div className="map-sidebar">
-        <div className="panel-kicker">Today</div>
+        <div className="panel-kicker">Today · {prompt}</div>
         <h1>Your path</h1>
         <p className="lede">
-          Every check-in connects in time order — a line through your day.
+          Your finds for <em>{prompt}</em> connect in time order — a line
+          through your day.
         </p>
         {loading ? (
           <p className="meta">Loading…</p>
         ) : (
           <Legend paths={paths} />
         )}
-        <PathReplayControls enabled={paths[0]?.checkins.length > 1} onProgress={setProgress} />
+        <PathReplayControls
+          enabled={(paths[0]?.checkins.length ?? 0) > 1}
+          onProgress={setProgress}
+        />
         <CheckInDetail checkIn={selected} />
         <a className="btn primary" href="/check-in">
-          Add a check-in
+          Add a find
         </a>
       </div>
       <PathMap
