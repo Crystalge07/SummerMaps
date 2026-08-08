@@ -152,7 +152,6 @@ export function AppLoadingScreen() {
       <div className="app-loading-copy">
         <p className="panel-kicker">the little things</p>
         <h1>Gathering finds…</h1>
-        <p className="meta">Drag the sphere — everyone&apos;s noticing.</p>
       </div>
       <SphereImageGrid
         images={images}

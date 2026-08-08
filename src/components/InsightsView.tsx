@@ -97,7 +97,7 @@ export function InsightsView() {
         <div className="panel dash-hero insights-hero">
           <h1>Insights</h1>
           <p className="meta insights-scope">
-            Citywide activity · not just your own
+            Insights beyond your own
           </p>
           <p className="meta insights-updated">
             <span className="live-dot" aria-hidden="true" />
@@ -112,7 +112,7 @@ export function InsightsView() {
             <span className="live-dot" aria-hidden="true" />
             Live
           </h2>
-          <p className="meta chart-hint">Last 30 minutes · citywide</p>
+          <p className="chart-hint">Last 30 minutes · citywide</p>
           <div className="live-metrics">
             <article>
               <strong>{live.length}</strong>
@@ -134,9 +134,12 @@ export function InsightsView() {
                   href={`/map?layer=city&view=lines&lat=${c.lat}&lng=${c.lng}`}
                   className="live-feed-row"
                 >
-                  <span className="live-feed-time">
+                  <time
+                    className="live-feed-time"
+                    dateTime={c.created_at}
+                  >
                     {format(new Date(c.created_at), "h:mm a")}
-                  </span>
+                  </time>
                   <span className="live-feed-body">
                     {captureMomentNearLabel(c.lat, c.lng, c.location_name)}
                   </span>
@@ -193,7 +196,7 @@ export function InsightsView() {
           <div className="insights-section-head insights-map-head">
             <h3 className="themes-subhead">Where people are contributing</h3>
             <Link className="btn ghost" href="/map?layer=city&view=heatmap">
-              Explore on map
+              Map
             </Link>
           </div>
           <div className="insights-map-embed">
