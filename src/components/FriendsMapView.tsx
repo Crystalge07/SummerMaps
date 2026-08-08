@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
+  ensureDeviceProfile,
   getFriendDeviceIds,
+  getProfileByDevice,
   getTodayCheckinsForDevices,
-  groupCheckinsIntoPaths,
+  storageMode,
 } from "@/lib/api";
+import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
+import { friendCodeFromDeviceId } from "@/lib/friendCode";
 import { getTodaysPrompt } from "@/lib/prompts";
 import type { CheckIn, PathSeries } from "@/lib/types";
 import { CheckInDetail } from "./CheckInDetail";
@@ -19,26 +23,75 @@ export function FriendsMapView() {
   const [selected, setSelected] = useState<CheckIn | null>(null);
   const [progress, setProgress] = useState(1);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const prompt = getTodaysPrompt();
 
-  useEffect(() => {
-    const me = getDeviceId();
-    getFriendDeviceIds(me)
-      .then(async (friendIds) => {
-        const deviceIds = [me, ...friendIds];
-        const checkins = await getTodayCheckinsForDevices(deviceIds);
-        const labels = new Map<string, string>();
-        labels.set(me, "You");
-        friendIds.forEach((id, idx) => labels.set(id, `Friend ${idx + 1}`));
-        setPaths(groupCheckinsIntoPaths(checkins, labels));
-        if (friendIds.length === 0 && checkins.length === 0) {
-          setError("Add friends (or load demo paths) to see shared paths.");
-        }
-      })
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load friends."),
+  const loadPaths = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const me = getDeviceId();
+      if (!me) {
+        setPaths([]);
+        setError("Device id not ready yet — refresh and try again.");
+        return;
+      }
+
+      // Ensure this device has a profile so friendships resolve in Supabase.
+      await ensureDeviceProfile(me);
+      const friendIds = await getFriendDeviceIds(me);
+      const deviceIds = [me, ...friendIds];
+      const checkins = await getTodayCheckinsForDevices(deviceIds);
+
+      const byDevice = new Map<string, CheckIn[]>();
+      for (const c of checkins) {
+        const list = byDevice.get(c.device_id) ?? [];
+        list.push(c);
+        byDevice.set(c.device_id, list);
+      }
+
+      const series: PathSeries[] = await Promise.all(
+        deviceIds.map(async (deviceId, index) => {
+          const profile = await getProfileByDevice(deviceId);
+          const code =
+            profile?.code ?? friendCodeFromDeviceId(deviceId);
+          const name = profile?.display_name?.trim();
+          const label =
+            deviceId === me
+              ? name
+                ? `You · ${name}`
+                : `You · ${code}`
+              : name || code;
+          const rows = (byDevice.get(deviceId) ?? []).sort((a, b) =>
+            a.created_at.localeCompare(b.created_at),
+          );
+          return {
+            deviceId,
+            color: colorForDevice(deviceId, index),
+            label,
+            checkins: rows,
+            connect: true,
+          };
+        }),
       );
+
+      setPaths(series);
+      setProgress(1);
+
+      if (friendIds.length === 0) {
+        setError("Add friends (or load demo paths) to see shared paths.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load friends.");
+      setPaths([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadPaths();
+  }, [loadPaths]);
 
   return (
     <div className="map-page has-atmosphere">
@@ -50,6 +103,10 @@ export function FriendsMapView() {
           Lines connect each friend&apos;s finds in time order — a rough sense
           of where they went while hunting the prompt.
         </p>
+        <p className="meta">
+          Storage: {storageMode() === "supabase" ? "Supabase" : "local demo"}
+        </p>
+        {loading && <p className="meta">Loading paths…</p>}
         {error && <p className="status error">{error}</p>}
         <Legend paths={paths} />
         <PathReplayControls
@@ -57,9 +114,19 @@ export function FriendsMapView() {
           onProgress={setProgress}
         />
         <CheckInDetail checkIn={selected} />
-        <a className="btn ghost" href="/friends">
-          Manage friends
-        </a>
+        <div className="actions">
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => loadPaths()}
+            disabled={loading}
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+          <a className="btn ghost" href="/friends">
+            Manage friends
+          </a>
+        </div>
       </div>
       <PathMap
         paths={paths}

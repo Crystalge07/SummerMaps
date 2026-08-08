@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 const links = [
   { href: "/", label: "Home" },
@@ -14,6 +15,15 @@ const links = [
 
 export function Nav() {
   const pathname = usePathname();
+  const activeRef = useRef<HTMLAnchorElement | null>(null);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({
+      inline: "nearest",
+      block: "nearest",
+      behavior: "smooth",
+    });
+  }, [pathname]);
 
   return (
     <header className="site-nav">
@@ -30,6 +40,7 @@ export function Nav() {
             <Link
               key={link.href}
               href={link.href}
+              ref={active ? activeRef : undefined}
               className={active ? "nav-link active" : "nav-link"}
             >
               {link.label}

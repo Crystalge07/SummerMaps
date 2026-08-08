@@ -124,12 +124,30 @@ export async function getAllCheckins(): Promise<CheckIn[]> {
   return (data ?? []) as CheckIn[];
 }
 
+export async function getProfileByDevice(
+  deviceId: string,
+): Promise<DeviceProfile | null> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.getProfileByDevice(deviceId);
+
+  const { data, error } = await supabase
+    .from("device_profiles")
+    .select("*")
+    .eq("device_id", deviceId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as DeviceProfile) ?? null;
+}
+
 export async function ensureDeviceProfile(
   deviceId: string,
   displayName?: string | null,
 ): Promise<DeviceProfile> {
   const supabase = getSupabase();
   if (!supabase) return localStore.ensureProfile(deviceId);
+
+  const existing = await getProfileByDevice(deviceId);
+  if (existing && displayName === undefined) return existing;
 
   const code = friendCodeFromDeviceId(deviceId);
   const { data, error } = await supabase
@@ -138,7 +156,10 @@ export async function ensureDeviceProfile(
       {
         device_id: deviceId,
         code,
-        display_name: displayName ?? null,
+        display_name:
+          displayName !== undefined
+            ? displayName
+            : (existing?.display_name ?? null),
       },
       { onConflict: "device_id" },
     )
