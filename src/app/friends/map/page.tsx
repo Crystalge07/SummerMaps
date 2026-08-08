@@ -1,5 +1,5 @@
-import { FriendsMapView } from "@/components/FriendsMapView";
+import { redirect } from "next/navigation";
 
 export default function FriendsMapPage() {
-  return <FriendsMapView />;
+  redirect("/map?layer=friends");
 }

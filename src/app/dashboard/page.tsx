@@ -1,5 +1,5 @@
-import { DashboardView } from "@/components/DashboardView";
+import { redirect } from "next/navigation";
 
 export default function DashboardPage() {
-  return <DashboardView />;
+  redirect("/profile");
 }

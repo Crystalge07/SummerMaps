@@ -21,26 +21,26 @@ const STATS = [
   {
     key: "finds",
     label: "finds today",
-    href: "/city?filter=checkins&view=lines",
+    href: "/map?layer=city&filter=checkins&view=lines",
     icon: "/brand/path-mark.svg",
   },
   {
     key: "noticers",
     label: "people noticing",
-    href: "/city?filter=noticers&view=lines",
+    href: "/map?layer=city&filter=noticers&view=lines",
     icon: "/brand/path-mark.svg",
   },
   {
     key: "prompt",
     label: "today's prompt",
-    href: "/capture",
+    href: "/",
     icon: "/brand/pin.svg",
     display: "text" as const,
   },
   {
     key: "alltime",
     label: "all-time finds",
-    href: "/city?filter=alltime&view=heatmap",
+    href: "/map?layer=city&filter=alltime&view=heatmap",
     icon: "/brand/path-mark.svg",
   },
 ] as const;
@@ -74,7 +74,7 @@ export function DashboardView() {
     <main className="fill-page">
       <div className="dashboard">
       <div className="panel dash-hero">
-        <div className="panel-kicker">pulse</div>
+        <div className="panel-kicker">profile · pulse</div>
         <h1>Pulse</h1>
         <p className="lede">
           Where today&apos;s prompt (<em>{prompt}</em>) showed up — busiest
@@ -120,7 +120,7 @@ export function DashboardView() {
               </p>
               <Link
                 className="btn primary"
-                href={`/city?filter=checkins&view=heatmap&lat=${busiest.lat}&lng=${busiest.lng}`}
+                href={`/map?layer=city&filter=checkins&view=heatmap&lat=${busiest.lat}&lng=${busiest.lng}`}
               >
                 Open on city map
               </Link>

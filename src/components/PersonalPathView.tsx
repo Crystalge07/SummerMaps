@@ -84,7 +84,7 @@ export function PersonalPathView() {
           ))}
         </div>
 
-        <a className="btn primary" href="/capture">
+        <a className="btn primary" href="/">
           Capture
         </a>
       </div>
