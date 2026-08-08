@@ -112,6 +112,12 @@ export const localStore = {
     );
   },
 
+  async getByDevice(deviceId: string): Promise<CheckIn[]> {
+    return read<CheckIn[]>(CHECKINS_KEY, [])
+      .filter((c) => c.device_id === deviceId)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  },
+
   async ensureProfile(deviceId: string): Promise<DeviceProfile> {
     return ensureProfile(deviceId);
   },
