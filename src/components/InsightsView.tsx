@@ -17,6 +17,7 @@ import {
   getTodayCityCheckins,
 } from "@/lib/api";
 import { friendCodeFromDeviceId } from "@/lib/friendCode";
+import { captureMomentNearLabel } from "@/lib/landmarks";
 import {
   activeSince,
   dailyCounts,
@@ -95,6 +96,13 @@ export function InsightsView() {
   const byHour = useMemo(() => hourlyDistribution(today), [today]);
   const growth = useMemo(() => dailyCounts(all, 14), [all]);
   const densest = useMemo(() => densestCells(today, 5), [today]);
+  const recent = useMemo(
+    () =>
+      [...all]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 10),
+    [all],
+  );
   // Prefer `all` (select *) so location_name is present without changing queries.
   const todaySpots = useMemo(() => {
     const ids = new Set(today.map((c) => c.id));
@@ -148,6 +156,27 @@ export function InsightsView() {
               <span>contributors</span>
             </article>
           </div>
+
+          <ul className="live-feed">
+            {recent.length === 0 && (
+              <li className="meta">No captures yet — add one from Home.</li>
+            )}
+            {recent.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/map?layer=city&view=lines&lat=${c.lat}&lng=${c.lng}`}
+                  className="live-feed-row"
+                >
+                  <span className="live-feed-time">
+                    {format(new Date(c.created_at), "h:mm a")}
+                  </span>
+                  <span className="live-feed-body">
+                    {captureMomentNearLabel(c.lat, c.lng, c.location_name)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
 
           <h3 className="spots-heading">Today&apos;s spots</h3>
           {todaySpots.length === 0 ? (
@@ -337,11 +366,13 @@ export function InsightsView() {
               {selected.caption?.trim() ? (
                 <p className="spots-sheet-caption">{selected.caption.trim()}</p>
               ) : null}
-              {selected.location_name?.trim() ? (
-                <p className="spots-sheet-location">
-                  {selected.location_name.trim()}
-                </p>
-              ) : null}
+              <p className="spots-sheet-location">
+                {captureMomentNearLabel(
+                  selected.lat,
+                  selected.lng,
+                  selected.location_name,
+                )}
+              </p>
             </div>
           </div>
         </div>
