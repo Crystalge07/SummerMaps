@@ -7,6 +7,7 @@ import { ensureDeviceProfile, getAllCheckins, getTodayCityCheckins } from "@/lib
 import { useAuthOptional } from "@/lib/auth";
 import { getDeviceId } from "@/lib/device";
 import type { DeviceProfile } from "@/lib/types";
+import { MemoriesPanel } from "./MemoriesPanel";
 
 const SHARE_ORIGIN = "https://summer-maps.vercel.app";
 
@@ -182,6 +183,8 @@ export function ProfileView() {
           Open my path
         </Link>
       </section>
+
+      <MemoriesPanel />
 
       <section className="profile-block profile-share-block">
         <h2>Share</h2>
