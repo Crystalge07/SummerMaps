@@ -100,20 +100,6 @@ export function PathMap({
       ? { lat: allPoints[0].lat, lng: allPoints[0].lng }
       : CITY_CENTER;
 
-  const markers = useMemo(
-    () =>
-      visiblePaths.flatMap((path) =>
-        path.checkins.map((checkIn) => {
-          const pos = displayCoords.get(checkIn.id) ?? {
-            lat: checkIn.lat,
-            lng: checkIn.lng,
-          };
-          return { checkIn, color: path.color, lat: pos.lat, lng: pos.lng };
-        }),
-      ),
-    [visiblePaths, displayCoords],
-  );
-
   const heatmapData = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -135,6 +121,38 @@ export function PathMap({
     viewMode === "lines" && focus !== "paths" && focus !== "crossings";
   const showCrossings =
     focus === "crossings" || (focus === "all" && crossings.length > 0);
+
+  // Prefer path overlays over city pins when the same check-in appears in both.
+  const uniqueMarkers = useMemo(() => {
+    const seen = new Set<string>();
+    const items: {
+      checkIn: CheckIn;
+      color: string;
+      lat: number;
+      lng: number;
+    }[] = [];
+    const ordered = [
+      ...visiblePaths.filter((p) => p.connect !== false),
+      ...visiblePaths.filter((p) => p.connect === false),
+    ];
+    for (const path of ordered) {
+      for (const checkIn of path.checkins) {
+        if (seen.has(checkIn.id)) continue;
+        seen.add(checkIn.id);
+        const pos = displayCoords.get(checkIn.id) ?? {
+          lat: checkIn.lat,
+          lng: checkIn.lng,
+        };
+        items.push({
+          checkIn,
+          color: path.color,
+          lat: pos.lat,
+          lng: pos.lng,
+        });
+      }
+    }
+    return items;
+  }, [visiblePaths, displayCoords]);
   const lineOpacity = focus === "crossings" ? 0.25 : 0.9;
 
   const canDeletePopup =
@@ -294,7 +312,7 @@ export function PathMap({
           })}
 
         {showMarkers &&
-          markers.map(({ checkIn: c, color, lat, lng }) => (
+          uniqueMarkers.map(({ checkIn: c, color, lat, lng }) => (
             <Marker
               key={c.id}
               latitude={lat}

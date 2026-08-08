@@ -18,17 +18,20 @@ import type { CheckIn, PathSeries } from "@/lib/types";
 import { CheckInDetail } from "./CheckInDetail";
 import { PathMap, type MapViewMode } from "./PathMap";
 
-type ToggleKey = "mine" | "friends" | "city";
+type PathToggle = "mine" | "friends";
 
 function parseView(raw: string | null): MapViewMode {
   return raw === "heatmap" ? "heatmap" : "lines";
 }
 
-/** Map legacy ?layer= links onto which overlays start enabled. */
-function initialToggles(layer: string | null): Record<ToggleKey, boolean> {
-  if (layer === "friends") return { mine: true, friends: true, city: false };
-  if (layer === "city") return { mine: false, friends: false, city: true };
-  return { mine: true, friends: false, city: false };
+function initialPathToggles(layer: string | null): Record<PathToggle, boolean> {
+  if (layer === "friends") return { mine: true, friends: true };
+  if (layer === "mine") return { mine: true, friends: false };
+  return { mine: false, friends: false };
+}
+
+function initialPanelOpen(layer: string | null) {
+  return layer === "mine" || layer === "friends";
 }
 
 export function UnifiedMapView() {
@@ -37,12 +40,16 @@ export function UnifiedMapView() {
   const viewParam = params.get("view");
   const latParam = params.get("lat");
   const lngParam = params.get("lng");
+  const layerParam = params.get("layer");
 
   const [myPath, setMyPath] = useState<PathSeries | null>(null);
   const [friendPaths, setFriendPaths] = useState<PathSeries[]>([]);
   const [cityPins, setCityPins] = useState<PathSeries[]>([]);
-  const [toggles, setToggles] = useState<Record<ToggleKey, boolean>>(() =>
-    initialToggles(params.get("layer")),
+  const [pathToggles, setPathToggles] = useState<Record<PathToggle, boolean>>(
+    () => initialPathToggles(layerParam),
+  );
+  const [panelOpen, setPanelOpen] = useState(() =>
+    initialPanelOpen(layerParam),
   );
   const [selected, setSelected] = useState<CheckIn | null>(null);
   const [error, setError] = useState("");
@@ -55,9 +62,9 @@ export function UnifiedMapView() {
     setViewMode(parseView(viewParam));
   }, [viewParam]);
 
-  const layerParam = params.get("layer");
   useEffect(() => {
-    setToggles(initialToggles(layerParam));
+    setPathToggles(initialPathToggles(layerParam));
+    setPanelOpen(initialPanelOpen(layerParam));
   }, [layerParam]);
 
   const loadAll = useCallback(async () => {
@@ -131,13 +138,33 @@ export function UnifiedMapView() {
     void loadAll();
   }, [loadAll]);
 
+  const pathsOn = pathToggles.mine || pathToggles.friends;
+
   const visiblePaths = useMemo(() => {
-    const next: PathSeries[] = [];
-    if (toggles.mine && myPath) next.push(myPath);
-    if (toggles.friends) next.push(...friendPaths);
-    if (toggles.city) next.push(...cityPins);
+    // Path overlays reuse the same check-in ids as city pins — drop those
+    // city pins so Marker keys stay unique and spots aren't doubled.
+    const overlayIds = new Set<string>();
+    if (pathToggles.mine && myPath) {
+      for (const c of myPath.checkins) overlayIds.add(c.id);
+    }
+    if (pathToggles.friends) {
+      for (const path of friendPaths) {
+        for (const c of path.checkins) overlayIds.add(c.id);
+      }
+    }
+
+    const cityLayer =
+      overlayIds.size === 0
+        ? cityPins
+        : cityPins.filter(
+            (pin) => !pin.checkins.some((c) => overlayIds.has(c.id)),
+          );
+
+    const next: PathSeries[] = [...cityLayer];
+    if (pathToggles.mine && myPath) next.push(myPath);
+    if (pathToggles.friends) next.push(...friendPaths);
     return next;
-  }, [cityPins, friendPaths, myPath, toggles]);
+  }, [cityPins, friendPaths, myPath, pathToggles]);
 
   useEffect(() => {
     if (!selected) return;
@@ -156,74 +183,84 @@ export function UnifiedMapView() {
     return undefined;
   }, [latParam, lngParam]);
 
-  function toggle(key: ToggleKey) {
-    setToggles((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      // Keep at least one layer on so the map never goes blank by accident.
-      if (!next.mine && !next.friends && !next.city) {
-        return prev;
-      }
-      return next;
-    });
+  function togglePath(key: PathToggle) {
+    setPathToggles((prev) => ({ ...prev, [key]: !prev[key] }));
+    setPanelOpen(true);
   }
 
   return (
     <div className="unified-map">
-      <div className="map-layer-bar" role="group" aria-label="Map layers">
+      <aside
+        className={
+          panelOpen ? "map-paths-panel open" : "map-paths-panel"
+        }
+      >
         <button
           type="button"
-          aria-pressed={toggles.mine}
-          className={toggles.mine ? "toggle active" : "toggle"}
-          onClick={() => toggle("mine")}
+          className="map-paths-toggle"
+          aria-expanded={panelOpen}
+          onClick={() => setPanelOpen((open) => !open)}
         >
-          Mine
+          Paths
         </button>
-        <button
-          type="button"
-          aria-pressed={toggles.friends}
-          className={toggles.friends ? "toggle active" : "toggle"}
-          onClick={() => toggle("friends")}
-        >
-          Friends
-        </button>
-        <button
-          type="button"
-          aria-pressed={toggles.city}
-          className={toggles.city ? "toggle active" : "toggle"}
-          onClick={() => toggle("city")}
-        >
-          City
-        </button>
-      </div>
 
-      {toggles.city && (
-        <div className="map-view-bar" role="group" aria-label="City view">
-          <button
-            type="button"
-            className={viewMode === "lines" ? "toggle active" : "toggle"}
-            onClick={() => setViewMode("lines")}
-          >
-            Pins
-          </button>
-          <button
-            type="button"
-            className={viewMode === "heatmap" ? "toggle active" : "toggle"}
-            onClick={() => setViewMode("heatmap")}
-          >
-            Heatmap
-          </button>
-        </div>
-      )}
+        {panelOpen && (
+          <div className="map-paths-body" role="group" aria-label="Path layers">
+            <label className="map-paths-option">
+              <input
+                type="checkbox"
+                checked={pathToggles.mine}
+                onChange={() => togglePath("mine")}
+              />
+              <span>My path</span>
+            </label>
+            <label className="map-paths-option">
+              <input
+                type="checkbox"
+                checked={pathToggles.friends}
+                onChange={() => togglePath("friends")}
+              />
+              <span>Friends&apos; paths</span>
+            </label>
+
+            <div className="map-paths-divider" />
+
+            <p className="map-paths-label">City view</p>
+            <div className="map-paths-view" role="group" aria-label="City view">
+              <button
+                type="button"
+                className={viewMode === "lines" ? "toggle active" : "toggle"}
+                onClick={() => setViewMode("lines")}
+              >
+                Pins
+              </button>
+              <button
+                type="button"
+                className={viewMode === "heatmap" ? "toggle active" : "toggle"}
+                disabled={pathsOn}
+                title={
+                  pathsOn
+                    ? "Heatmap is available when path overlays are off"
+                    : undefined
+                }
+                onClick={() => setViewMode("heatmap")}
+              >
+                Heatmap
+              </button>
+            </div>
+          </div>
+        )}
+      </aside>
 
       {loading && <p className="map-status-chip">Loading…</p>}
       {error && !loading && <p className="map-status-chip error">{error}</p>}
 
       <PathMap
         paths={visiblePaths}
-        anonymizePhotos={toggles.city && !toggles.mine && !toggles.friends}
+        anonymizePhotos={false}
         onSelectCheckIn={setSelected}
-        viewMode={toggles.city && !toggles.mine && !toggles.friends ? viewMode : "lines"}
-        focus={toggles.city && !toggles.mine && !toggles.friends ? "checkins" : "all"}
+        viewMode={pathsOn ? "lines" : viewMode}
+        focus={pathsOn ? "all" : "checkins"}
         initialCenter={initialCenter}
       />
 
@@ -240,7 +277,6 @@ export function UnifiedMapView() {
           <CheckInDetail
             checkIn={selected}
             anonymize={
-              toggles.city &&
               !visiblePaths.some(
                 (p) =>
                   p.connect !== false &&
