@@ -27,10 +27,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     setMe(profile);
     const ids = await getFriendDeviceIds(deviceId);
     const profiles = await Promise.all(
-      ids.map(async (id) => {
-        const fromStore = await ensureDeviceProfile(id);
-        return fromStore;
-      }),
+      ids.map(async (id) => ensureDeviceProfile(id)),
     );
     setFriends(profiles);
   }
@@ -57,46 +54,50 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   }
 
   return (
-    <div className="panel">
-      <div className="panel-kicker">Paths, not circles</div>
-      <h1>Friends</h1>
-      <p className="lede">
-        Share your code with people you trust. Friends see each other&apos;s
-        day as a connected path. Strangers on the city map only see loose pins.
-      </p>
+    <div className="panel friends-panel">
+      <div className="friends-intro">
+        <div className="panel-kicker">Little paths</div>
+        <h1>Friends</h1>
+        <p className="lede">
+          Share your code with people you trust. Friends see each other&apos;s
+          day as a connected path — strangers on the city map only see loose
+          finds.
+        </p>
+      </div>
 
-      {me && (
-        <div className="group-active">
-          <p>
-            Your friend code: <strong>{me.code}</strong>
-          </p>
-          <p className="meta">
-            Share your code <code>{me.code}</code> or link{" "}
-            <code>/friends?code={me.code}</code>
-          </p>
-          <a className="btn primary" href="/friends/map">
-            Open friends map
-          </a>
-        </div>
-      )}
+      <div className="friends-grid">
+        {me && (
+          <div className="group-active">
+            <p>
+              Your friend code: <strong className="code">{me.code}</strong>
+            </p>
+            <p className="meta">
+              Share <code>/friends?code={me.code}</code>
+            </p>
+            <a className="btn primary" href="/friends/map">
+              Open friends map
+            </a>
+          </div>
+        )}
 
-      <form className="group-forms" onSubmit={onAddFriend}>
-        <label className="field">
-          <span>Add a friend by code</span>
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="ABC123"
-            maxLength={8}
-          />
-        </label>
-        <button type="submit" className="btn primary" disabled={!code.trim()}>
-          Add friend
-        </button>
-      </form>
+        <form className="group-forms" onSubmit={onAddFriend}>
+          <label className="field">
+            <span>Add a friend by code</span>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="ABC123"
+              maxLength={8}
+            />
+          </label>
+          <button type="submit" className="btn primary" disabled={!code.trim()}>
+            Add friend
+          </button>
+        </form>
+      </div>
 
       {friends.length > 0 && (
-        <ul className="fallback-paths">
+        <ul className="fallback-paths friends-list">
           {friends.map((f) => (
             <li key={f.device_id}>
               <strong>{f.code}</strong>

@@ -1,4 +1,6 @@
-# Pathline
+# The Little Things
+A summery, whimsical app for noticing life's small joys.
+
 Every day, everyone gets the same prompt — something small to notice
 ("purple", "cool sneakers", "wings"). When you spot it, take a photo.
 It pins where you are. Little things, shared.
@@ -35,7 +37,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## The Core Idea
 Everyone wakes up to the **same daily prompt** — a small thing to notice
-in the world. Whenever you see it, you check in with one photo; Pathline
+in the world. Whenever you see it, you check in with one photo; the app
 pins that moment to your location.
 
 - **You** see your own day's finds connected into a **path** — a rough

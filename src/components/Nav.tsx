@@ -18,7 +18,7 @@ export function Nav() {
   return (
     <header className="site-nav">
       <Link href="/" className="brand">
-        Pathline
+        The Little Things
       </Link>
       <nav aria-label="Primary">
         {links.map((link) => {
