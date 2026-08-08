@@ -2,17 +2,13 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { AppLoadingScreen } from "@/components/AppLoadingScreen";
-import { AuthGate } from "@/components/AuthGate";
 import { LocationConsent } from "@/components/LocationConsent";
 import { TabBar } from "@/components/TabBar";
-import { useAuth } from "@/lib/auth";
-import { isSupabaseConfigured } from "@/lib/supabase";
 
 const SPLASH_MS = 1800;
 
-/** Hides the app shell until splash + session/username are ready. */
+/** App shell — splash sphere on boot; login is optional via Profile. */
 export function AppChrome({ children }: { children: ReactNode }) {
-  const auth = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
@@ -20,17 +16,8 @@ export function AppChrome({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(id);
   }, []);
 
-  const authLoading = isSupabaseConfigured && auth.status === "loading";
-  if (authLoading || !splashDone) {
+  if (!splashDone) {
     return <AppLoadingScreen />;
-  }
-
-  const blocked =
-    isSupabaseConfigured &&
-    (auth.status === "error" || auth.needsAuth || auth.needsUsername);
-
-  if (blocked) {
-    return <AuthGate />;
   }
 
   return (

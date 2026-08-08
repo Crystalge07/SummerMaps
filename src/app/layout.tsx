@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Caveat, Nunito } from "next/font/google";
+import { Caveat, Nunito, Playfair_Display } from "next/font/google";
 import { AppChrome } from "@/components/AppChrome";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
@@ -9,9 +9,16 @@ const nunito = Nunito({
   variable: "--font-body",
 });
 
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  weight: ["400", "600"],
+  variable: "--font-display",
+});
+
 const caveat = Caveat({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-script",
 });
 
 export const metadata: Metadata = {
@@ -26,7 +33,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${nunito.variable} ${caveat.variable}`}>
+    <html
+      lang="en"
+      className={`${nunito.variable} ${playfair.variable} ${caveat.variable}`}
+    >
       <body>
         <AuthProvider>
           <AppChrome>{children}</AppChrome>

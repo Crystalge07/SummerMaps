@@ -49,13 +49,26 @@ create policy "checkins_insert" on checkins for insert with check (true);
 
 insert into storage.buckets (id, name, public)
 values ('checkins', 'checkins', true)
-on conflict (id) do nothing;
+on conflict (id) do update set public = excluded.public;
 
+-- Allow both anonymous device users (anon) and email/password users (authenticated).
+drop policy if exists "checkin_photos_read" on storage.objects;
 create policy "checkin_photos_read" on storage.objects
-  for select using (bucket_id = 'checkins');
+  for select
+  to anon, authenticated
+  using (bucket_id = 'checkins');
 
+drop policy if exists "checkin_photos_insert" on storage.objects;
 create policy "checkin_photos_insert" on storage.objects
-  for insert with check (bucket_id = 'checkins');
+  for insert
+  to anon, authenticated
+  with check (bucket_id = 'checkins');
+
+drop policy if exists "checkin_photos_delete" on storage.objects;
+create policy "checkin_photos_delete" on storage.objects
+  for delete
+  to anon, authenticated
+  using (bucket_id = 'checkins');
 
 -- ——— Auth profiles + usernames ———
 -- Login is email + password (Authentication → Providers → Email enabled).

@@ -1,7 +1,7 @@
 "use client";
 
 import imageCompression from "browser-image-compression";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   createCheckIn,
@@ -17,6 +17,7 @@ type Status = "idle" | "locating" | "uploading" | "done" | "error";
 type CameraPhase = "idle" | "live" | "preview";
 
 export function CheckInForm() {
+  const router = useRouter();
   const auth = useAuthOptional();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -35,6 +36,14 @@ export function CheckInForm() {
   useEffect(() => {
     getDeviceId();
   }, []);
+
+  useEffect(() => {
+    if (status !== "done") return;
+    const timer = window.setTimeout(() => {
+      router.push("/path");
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [status, router]);
 
   useEffect(() => {
     captionRef.current = caption;
@@ -150,7 +159,7 @@ export function CheckInForm() {
     }
 
     setStatus("uploading");
-    setMessage(demo ? "Pinning with a downtown demo place…" : "Pinning to the map…");
+    setMessage(demo ? "Dropping your pin with a downtown demo place…" : "Dropping your pin…");
 
     const deviceId = getDeviceId();
     const photoUrl = await uploadCheckInPhoto(file, deviceId);
@@ -166,8 +175,8 @@ export function CheckInForm() {
     setStatus("done");
     setMessage(
       demo
-        ? "Pinned with a downtown demo place — location was unavailable."
-        : "Pinned. Your path just grew.",
+        ? "Pin dropped! (demo place) Taking you to your path…"
+        : "Pin dropped! Taking you to your path…",
     );
     setCaption("");
   }
@@ -236,13 +245,6 @@ export function CheckInForm() {
       capturingRef.current = false;
       setCapturing(false);
     }
-  }
-
-  function resetForAnother() {
-    clearPreview();
-    setPhase("idle");
-    setStatus("idle");
-    setMessage("");
   }
 
   const busy =
@@ -323,10 +325,9 @@ export function CheckInForm() {
               onClick={() => void startCamera()}
               disabled={startingCamera || busy}
             >
+              <CameraIcon />
               <span>
-                {startingCamera
-                  ? "Opening camera…"
-                  : `Photo of today’s ${prompt}`}
+                {startingCamera ? "Opening camera…" : "tap to spot something"}
               </span>
             </button>
           )}
@@ -338,39 +339,61 @@ export function CheckInForm() {
             <input
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              placeholder="Where did you spot it?"
+              placeholder="where did you spot it?"
               maxLength={120}
               disabled={busy}
             />
           </label>
         )}
 
-        {status === "done" && (
-          <div className="actions">
-            <Link href="/path" className="btn primary">
-              See on my path
-            </Link>
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={resetForAnother}
-            >
-              Capture another
-            </button>
+        {status === "done" && preview && (
+          <div className="checkin-success" role="status" aria-live="polite">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="" className="checkin-success-thumb" />
+            <p className="status">Spotted! Taking you to your path…</p>
           </div>
         )}
 
-        {message && (
+        {message && status !== "done" && (
           <p className={`status ${status === "error" ? "error" : ""}`}>
             {message}
           </p>
         )}
 
         <p className="meta">
-          Storage: {storageMode() === "supabase" ? "Supabase" : "local demo"}
+          saving to your path · {storageMode() === "supabase" ? "synced" : "local demo"}
           {auth?.profile ? ` · @${auth.profile.username}` : ""}
         </p>
       </section>
     </>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg
+      className="photo-placeholder-icon"
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="5"
+        y="14"
+        width="38"
+        height="26"
+        rx="6"
+        stroke="currentColor"
+        strokeWidth="2.5"
+      />
+      <path
+        d="M17 14l2.6-4.5A3 3 0 0 1 22.2 8h3.6a3 3 0 0 1 2.6 1.5L31 14"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="24" cy="27" r="7.5" stroke="currentColor" strokeWidth="2.5" />
+    </svg>
   );
 }

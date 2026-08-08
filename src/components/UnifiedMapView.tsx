@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   checkinsAsUnlinkedPins,
+  deleteCheckIn,
   ensureDeviceProfile,
   getAllCheckins,
   getFriendDeviceIds,
@@ -17,6 +18,7 @@ import { friendCodeFromDeviceId } from "@/lib/friendCode";
 import type { CheckIn, PathSeries } from "@/lib/types";
 import { CheckInDetail } from "./CheckInDetail";
 import { PathMap, type MapViewMode } from "./PathMap";
+import { PathReplayControls } from "./PathReplayControls";
 
 type PathToggle = "mine" | "friends";
 
@@ -41,6 +43,7 @@ export function UnifiedMapView() {
   const latParam = params.get("lat");
   const lngParam = params.get("lng");
   const layerParam = params.get("layer");
+  const freshParam = params.get("fresh");
 
   const [myPath, setMyPath] = useState<PathSeries | null>(null);
   const [friendPaths, setFriendPaths] = useState<PathSeries[]>([]);
@@ -57,6 +60,7 @@ export function UnifiedMapView() {
   const [viewMode, setViewMode] = useState<MapViewMode>(() =>
     parseView(viewParam),
   );
+  const [replayProgress, setReplayProgress] = useState(1);
 
   useEffect(() => {
     setViewMode(parseView(viewParam));
@@ -136,7 +140,7 @@ export function UnifiedMapView() {
 
   useEffect(() => {
     void loadAll();
-  }, [loadAll]);
+  }, [loadAll, freshParam, layerParam]);
 
   const pathsOn = pathToggles.mine || pathToggles.friends;
 
@@ -188,8 +192,57 @@ export function UnifiedMapView() {
     setPanelOpen(true);
   }
 
+  async function handleDeleteOwnCheckIn(checkIn: CheckIn) {
+    const me = getDeviceId();
+    if (!me || checkIn.device_id !== me) {
+      throw new Error("You can only remove your own spots.");
+    }
+    await deleteCheckIn(checkIn.id, me);
+    setMyPath((prev) =>
+      prev
+        ? {
+            ...prev,
+            checkins: prev.checkins.filter((c) => c.id !== checkIn.id),
+          }
+        : null,
+    );
+    setCityPins((prev) =>
+      prev
+        .map((pin) => ({
+          ...pin,
+          checkins: pin.checkins.filter((c) => c.id !== checkIn.id),
+        }))
+        .filter((pin) => pin.checkins.length > 0),
+    );
+    setSelected((prev) => (prev?.id === checkIn.id ? null : prev));
+  }
+
+  const myDeviceId = pathToggles.mine ? getDeviceId() || undefined : undefined;
+
+  const legendPaths = [
+    ...(pathToggles.mine && myPath ? [myPath] : []),
+    ...(pathToggles.friends ? friendPaths : []),
+  ];
+
+  const showEmptyState =
+    !loading &&
+    pathToggles.mine &&
+    !pathToggles.friends &&
+    myPath !== null &&
+    myPath.checkins.length === 0;
+
+  const showReplay =
+    pathsOn && pathToggles.mine && !!myPath && myPath.checkins.length > 0;
+
   return (
     <div className="unified-map">
+      {!pathsOn && (
+        <p className="map-city-header">
+          <strong>City finds</strong>
+          <span>what everyone spotted today</span>
+        </p>
+      )}
+
       <aside
         className={
           panelOpen ? "map-paths-panel open" : "map-paths-panel"
@@ -245,15 +298,29 @@ export function UnifiedMapView() {
                 }
                 onClick={() => setViewMode("heatmap")}
               >
-                Heatmap
+                Heat
               </button>
             </div>
           </div>
         )}
       </aside>
 
-      {loading && <p className="map-status-chip">Loading…</p>}
-      {error && !loading && <p className="map-status-chip error">{error}</p>}
+      {loading && (
+        <p
+          className="map-status-chip"
+          style={!pathsOn ? { top: "4.25rem" } : undefined}
+        >
+          Loading…
+        </p>
+      )}
+      {error && !loading && (
+        <p
+          className="map-status-chip error"
+          style={!pathsOn ? { top: "4.25rem" } : undefined}
+        >
+          {error}
+        </p>
+      )}
 
       <PathMap
         paths={visiblePaths}
@@ -262,7 +329,38 @@ export function UnifiedMapView() {
         viewMode={pathsOn ? "lines" : viewMode}
         focus={pathsOn ? "all" : "checkins"}
         initialCenter={initialCenter}
+        ownDeviceId={myDeviceId}
+        replayProgress={showReplay ? replayProgress : 1}
+        onDeleteCheckIn={
+          myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
+        }
       />
+
+      {legendPaths.length > 0 && (
+        <ul className="map-legend-pills">
+          {legendPaths.map((p) => (
+            <li key={p.deviceId} className="map-legend-pill">
+              <span className="swatch" style={{ background: p.color }} />
+              {p.label.split(" · ")[0].split(" ")[0]}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {showReplay && (
+        <div className="map-replay-dock">
+          <PathReplayControls enabled onProgress={setReplayProgress} />
+        </div>
+      )}
+
+      {showEmptyState && (
+        <div className="map-empty-card">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/path-mark.svg" alt="" />
+          <strong>Your path starts with one spot</strong>
+          <p>Spot today&apos;s prompt to drop your first pin.</p>
+        </div>
+      )}
 
       {selected && (
         <div className="map-detail-float">

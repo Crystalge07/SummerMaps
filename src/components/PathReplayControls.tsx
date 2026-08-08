@@ -46,7 +46,7 @@ export function PathReplayControls({ enabled, onProgress }: Props) {
     <div className="replay-bar">
       <button
         type="button"
-        className="btn ghost"
+        className="btn primary"
         onClick={() => {
           if (progress >= 1) {
             setProgress(0);
@@ -56,7 +56,7 @@ export function PathReplayControls({ enabled, onProgress }: Props) {
           setPlaying((p) => !p);
         }}
       >
-        {playing ? "Pause" : progress >= 1 ? "Replay path" : "Play"}
+        {playing ? "Pause" : progress >= 1 ? "Replay my day" : "Play"}
       </button>
       <input
         type="range"

@@ -6,12 +6,13 @@ import {
   addFriendByUsername,
   ensureDeviceProfile,
   getFriendDeviceIds,
-  getProfileByDevice,
+  getProfileByDeviceId,
+  removeFriend,
   searchProfiles,
 } from "@/lib/api";
 import { useAuthOptional } from "@/lib/auth";
 import { colorForDevice } from "@/lib/colors";
-import { getDeviceId } from "@/lib/device";
+import { friendCodeFromDeviceId, getDeviceId } from "@/lib/device";
 import type { DeviceProfile, Profile } from "@/lib/types";
 import { normalizeUsername } from "@/lib/username";
 import { DemoSeedButton } from "./DemoSeedButton";
@@ -33,6 +34,8 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialCode.length === 6) {
@@ -50,28 +53,40 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   }, [me, username]);
 
   async function refresh() {
-    const deviceId = getDeviceId();
+    // Prefer auth uid (synced into localStorage) so both sides of a friendship
+    // query the same id that was written into friendships.a/b_device_id.
+    const deviceId = auth?.user?.id || getDeviceId();
+    if (!deviceId) return;
+
     const profile = await ensureDeviceProfile(
       deviceId,
       auth?.profile?.username ?? undefined,
     );
     setMe(profile);
+
+    // Both directions: people I added AND people who added me.
     const ids = await getFriendDeviceIds(deviceId);
-    const profiles = (
-      await Promise.all(
-        ids.map(async (id) => {
-          const existing = await getProfileByDevice(id);
-          return existing ?? ensureDeviceProfile(id);
-        }),
-      )
-    ).filter(Boolean) as DeviceProfile[];
+    const profiles = await Promise.all(
+      ids.map(async (id) => {
+        const existing = await getProfileByDeviceId(id);
+        if (existing) return existing;
+        return {
+          device_id: id,
+          code: friendCodeFromDeviceId(id),
+          display_name: null,
+          created_at: new Date(0).toISOString(),
+        } satisfies DeviceProfile;
+      }),
+    );
     setFriends(profiles);
   }
 
   useEffect(() => {
     void refresh();
+    // Re-run when auth identity is ready — avoids loading with a stale
+    // pre-login localStorage UUID and missing mutual friendships.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth?.profile?.username]);
+  }, [auth?.user?.id, auth?.profile?.username]);
 
   useEffect(() => {
     const q = normalizeUsername(query);
@@ -190,6 +205,24 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     }
   }
 
+  async function onConfirmRemove(friend: DeviceProfile) {
+    const myId = auth?.user?.id || getDeviceId();
+    if (!myId) return;
+    setRemovingId(friend.device_id);
+    setError("");
+    try {
+      await removeFriend(myId, friend.device_id);
+      setFriends((prev) => prev.filter((f) => f.device_id !== friend.device_id));
+      setConfirmRemoveId(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not remove friend.",
+      );
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
   return (
     <div className="friends-page">
       {me && (
@@ -208,7 +241,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
               {copied === "code" ? "Copied ✓" : username ? "Copy username" : "Copy code"}
             </button>
             <button type="button" className="btn ghost" onClick={() => void onShare()}>
-              Share
+              <ShareIcon /> Share
             </button>
           </div>
           {shareUrl && (
@@ -311,29 +344,75 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
           <div className="friends-empty">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/path-mark.svg" alt="" width={56} height={56} />
-            <p>No one in your circle yet.</p>
-            <p className="meta">Share your username to get started.</p>
+            <p>Two paths that haven&apos;t connected yet.</p>
+            <p className="meta">Share your username to find each other.</p>
           </div>
         ) : (
           <ul className="friends-contact-list">
-            {friends.map((f) => (
-              <li key={f.device_id}>
-                <a className="friends-contact-row" href="/map?layer=friends">
-                  <span
-                    className="friends-color-dot"
-                    style={{ background: colorForDevice(f.device_id) }}
-                  />
-                  <span className="friends-contact-name">
-                    {f.display_name?.trim()
-                      ? `@${f.display_name.trim()}`
-                      : f.code}
-                  </span>
-                  <span className="friends-contact-go" aria-hidden>
-                    →
-                  </span>
-                </a>
-              </li>
-            ))}
+            {friends.map((f) => {
+              const label = f.display_name?.trim()
+                ? `@${f.display_name.trim()}`
+                : f.code || friendCodeFromDeviceId(f.device_id);
+              const confirming = confirmRemoveId === f.device_id;
+              const busy = removingId === f.device_id;
+              return (
+                <li key={f.device_id}>
+                  {confirming ? (
+                    <div className="friends-contact-confirm">
+                      <span>
+                        Remove {label} from your circle?
+                      </span>
+                      <div className="actions">
+                        <button
+                          type="button"
+                          className="btn danger"
+                          disabled={busy}
+                          onClick={() => void onConfirmRemove(f)}
+                        >
+                          {busy ? "Removing…" : "Confirm"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          disabled={busy}
+                          onClick={() => setConfirmRemoveId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="friends-contact-row">
+                      <a
+                        className="friends-contact-main"
+                        href="/map?layer=friends"
+                      >
+                        <span
+                          className="friends-color-dot"
+                          style={{ background: colorForDevice(f.device_id) }}
+                        />
+                        <span className="friends-contact-name">{label}</span>
+                      </a>
+                      <button
+                        type="button"
+                        className="friends-contact-remove"
+                        aria-label={`Remove ${label}`}
+                        onClick={() => setConfirmRemoveId(f.device_id)}
+                      >
+                        ×
+                      </button>
+                      <a
+                        className="friends-contact-go"
+                        href="/map?layer=friends"
+                        aria-label={`Open map with ${label}`}
+                      >
+                        on the map →
+                      </a>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -346,6 +425,22 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
 
       <DemoSeedButton onLoaded={() => void refresh()} />
     </div>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="18" cy="5" r="2.75" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="6" cy="12" r="2.75" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="18" cy="19" r="2.75" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M8.4 10.6l7.2-4.2M8.4 13.4l7.2 4.2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
