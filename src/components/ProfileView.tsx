@@ -14,7 +14,8 @@ const SHARE_ORIGIN = "https://summer-maps.vercel.app";
 export function ProfileView() {
   const auth = useAuthOptional();
   const username = auth?.profile?.username;
-  const email = auth?.user?.email ?? "";
+  const email = (auth?.user?.email ?? "").trim();
+  const hasEmail = Boolean(email && email !== "—");
   const memberSince = auth?.profile?.created_at;
   const signedIn = Boolean(auth?.user && auth?.profile);
 
@@ -108,24 +109,24 @@ export function ProfileView() {
         </p>
       )}
 
-      <section className="panel profile-section">
-        <button
-          type="button"
-          className="profile-settings-toggle"
-          aria-expanded={settingsOpen}
-          onClick={() => setSettingsOpen((o) => !o)}
-        >
-          <span>Settings</span>
-          <span aria-hidden="true">{settingsOpen ? "−" : "+"}</span>
-        </button>
-        {settingsOpen && (
-          <div className="profile-settings-body">
-            <div className="profile-row">
-              <div>
-                <span className="profile-row-label">Email</span>
-                <strong className="profile-row-value">{email || "—"}</strong>
-              </div>
-              {email && (
+      {hasEmail && (
+        <section className="panel profile-section">
+          <button
+            type="button"
+            className="profile-settings-toggle"
+            aria-expanded={settingsOpen}
+            onClick={() => setSettingsOpen((o) => !o)}
+          >
+            <span>Settings</span>
+            <span aria-hidden="true">{settingsOpen ? "−" : "+"}</span>
+          </button>
+          {settingsOpen && (
+            <div className="profile-settings-body">
+              <div className="profile-row">
+                <div>
+                  <span className="profile-row-label">Email</span>
+                  <strong className="profile-row-value">{email}</strong>
+                </div>
                 <button
                   type="button"
                   className="btn ghost"
@@ -133,38 +134,21 @@ export function ProfileView() {
                 >
                   {copied === "email" ? "Copied" : "Copy"}
                 </button>
-              )}
-            </div>
-            <div className="profile-row">
-              <div>
-                <span className="profile-row-label">Friend code</span>
-                <strong className="profile-row-value code">
-                  {me?.code ?? "…"}
-                </strong>
               </div>
-              {me && (
+              {signedIn && (
                 <button
                   type="button"
-                  className="btn ghost"
-                  onClick={() => void copyText(me.code, "code")}
+                  className="btn ghost profile-signout-btn"
+                  disabled={signingOut}
+                  onClick={() => void onSignOut()}
                 >
-                  {copied === "code" ? "Copied" : "Copy"}
+                  {signingOut ? "Signing out…" : "Sign out"}
                 </button>
               )}
             </div>
-            {signedIn && (
-              <button
-                type="button"
-                className="btn ghost profile-signout-btn"
-                disabled={signingOut}
-                onClick={() => void onSignOut()}
-              >
-                {signingOut ? "Signing out…" : "Sign out"}
-              </button>
-            )}
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
 
       <section className="panel profile-section">
         <h2>Your activity</h2>
@@ -224,6 +208,17 @@ export function ProfileView() {
           Open friends
         </Link>
       </section>
+
+      {signedIn && !hasEmail && (
+        <button
+          type="button"
+          className="profile-signout-link"
+          disabled={signingOut}
+          onClick={() => void onSignOut()}
+        >
+          {signingOut ? "Signing out…" : "Sign out"}
+        </button>
+      )}
     </div>
   );
 }

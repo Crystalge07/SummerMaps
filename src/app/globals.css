@@ -701,6 +701,7 @@ input.underline-input:focus {
   width: 100%;
   padding: 1.25rem 1rem 2.75rem;
   box-sizing: border-box;
+  background: var(--color-bg);
 }
 
 .friends-page {
@@ -708,6 +709,7 @@ input.underline-input:focus {
   margin: 0 auto;
   display: grid;
   gap: 1.5rem;
+  background: transparent;
 }
 
 .friends-hero-card {
@@ -756,7 +758,7 @@ input.underline-input:focus {
   letter-spacing: 0.22em;
   text-indent: 0.22em;
   line-height: 1.1;
-  color: #fdfaf4;
+  color: var(--color-bg-card);
   background: var(--color-green-primary);
   padding: 0.6rem 1.1rem;
   border-radius: 999px;
@@ -771,7 +773,7 @@ input.underline-input:focus {
 .friends-hero-actions .btn.primary {
   background: var(--color-green-primary);
   border-color: var(--color-green-primary);
-  color: #fdfaf4;
+  color: var(--color-bg-card);
 }
 
 .friends-hero-actions .btn.primary:hover:not(:disabled) {
@@ -828,7 +830,7 @@ input.underline-input:focus {
   height: 1.5rem;
   padding: 0 0.4rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--sage) 45%, #fff);
+  background: color-mix(in srgb, var(--sage) 45%, var(--color-bg-card));
   color: var(--ink);
   font-family: var(--font-body), "Nunito", sans-serif;
   font-size: 0.78rem;
@@ -866,7 +868,7 @@ input.underline-input:focus {
   width: 100%;
   background: var(--color-green-primary);
   border-color: var(--color-green-primary);
-  color: #fdfaf4;
+  color: var(--color-bg-card);
 }
 
 .friends-add-btn:hover:not(:disabled) {
@@ -928,7 +930,7 @@ input.underline-input:focus {
   height: 16px;
   border-radius: 50%;
   flex: 0 0 auto;
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--color-bg-card);
 }
 
 .friends-contact-name {
@@ -984,7 +986,7 @@ input.underline-input:focus {
   width: 100%;
   background: var(--color-green-primary);
   border-color: var(--color-green-primary);
-  color: #fdfaf4;
+  color: var(--color-bg-card);
 }
 
 /* ——— Check-in cards (My Path) ——— */
@@ -2489,45 +2491,128 @@ input.underline-input:focus {
   min-height: 220px;
 }
 
-.live-feed {
-  list-style: none;
-  padding: 0;
-  margin: 0.85rem 0 0;
-  display: grid;
-  gap: 0;
-  border-top: 1px solid var(--line);
+.spots-heading {
+  margin: 1.1rem 0 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
-.live-feed-row {
-  display: grid;
-  grid-template-columns: 4.5rem 1fr;
-  gap: 0.75rem;
-  align-items: baseline;
-  padding: 0.7rem 0.1rem;
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
-  color: inherit;
-}
-
-.live-feed-row:hover,
-.live-feed-row:focus-visible {
-  background: color-mix(in srgb, var(--butter) 22%, transparent);
-  outline: none;
-}
-
-.live-feed-time {
-  font-size: 0.8rem;
-  color: var(--ink-soft);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.live-feed-body {
+.spots-empty {
+  margin: 0.25rem 0 0;
+  text-align: center;
   font-size: 0.95rem;
-  min-width: 0;
+  color: var(--color-green-secondary);
+}
+
+.spots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  width: 100%;
+}
+
+.spots-grid-cell {
+  aspect-ratio: 1;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  cursor: pointer;
+  padding: 0;
+  border: 0;
+  background: var(--color-bg);
+  display: block;
+}
+
+.spots-grid-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.2s;
+}
+
+.spots-grid-cell:active img {
+  opacity: 0.85;
+}
+
+.spots-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: color-mix(in srgb, var(--color-text) 45%, transparent);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+.spots-sheet {
+  position: relative;
+  width: min(100%, 28rem);
+  max-height: min(88dvh, 40rem);
+  overflow: auto;
+  background: var(--color-bg-card);
+  border-radius: 18px 18px 0 0;
+  padding: 1rem 1rem 1.35rem;
+  box-shadow: var(--card-shadow-lg);
+}
+
+.spots-sheet-close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.75rem;
+  z-index: 1;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-bg-card) 85%, transparent);
+  color: var(--color-text);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.spots-sheet-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 14px;
+  display: block;
+  background: var(--color-bg);
+}
+
+.spots-sheet-body {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+}
+
+.spots-sheet-meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.75rem;
+  color: var(--color-text);
+}
+
+.spots-sheet-meta span {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.spots-sheet-caption {
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.spots-sheet-location {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-green-primary);
 }
 
 .mood-block {
@@ -2740,6 +2825,25 @@ input.underline-input:focus {
   justify-self: start;
 }
 
+.profile-signout-link {
+  justify-self: center;
+  margin-top: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+}
+
+.profile-signout-link:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 .profile-activity-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2779,10 +2883,6 @@ input.underline-input:focus {
 
   .live-metrics {
     grid-template-columns: 1fr;
-  }
-
-  .live-feed-row {
-    grid-template-columns: 4rem 1fr;
   }
 }
 
