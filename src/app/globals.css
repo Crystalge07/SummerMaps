@@ -1673,6 +1673,243 @@ a {
   color: var(--ink-soft);
 }
 
+/* ——— Memories / mosaic ——— */
+.mosaic-notif {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem 1rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--sage) 45%, var(--line));
+  background: color-mix(in srgb, var(--sage) 14%, #fffcf6);
+}
+
+.mosaic-notif-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.mosaic-notif-copy strong {
+  font-family: var(--font-display), "Caveat", cursive;
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.mosaic-notif-copy span {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.mosaic-notif-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.live-mosaic-block {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.memory-badge {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--butter) 40%, #fffcf6);
+  font-family: var(--font-body), "Nunito", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  color: var(--ink-soft);
+}
+
+.memories-hero .lede {
+  margin-bottom: 0.85rem;
+}
+
+.memories-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.memories-empty {
+  margin: 0;
+}
+
+.memories-list-panel h2 {
+  margin-bottom: 0.85rem;
+}
+
+.memories-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.memory-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 0.85rem;
+  align-items: center;
+  text-align: left;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper) 70%, white);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: background 160ms ease;
+}
+
+.memory-card:hover,
+.memory-card:focus-visible {
+  background: color-mix(in srgb, var(--butter) 28%, #fffcf6);
+  outline: none;
+}
+
+.memory-thumbs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  width: 88px;
+  height: 88px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--paper-2);
+}
+
+.memory-thumbs img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.memory-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.memory-copy strong {
+  font-family: var(--font-display), "Caveat", cursive;
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.memory-copy span {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.memory-copy em {
+  font-style: italic;
+  color: var(--ink);
+}
+
+.mosaic-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #1c1814;
+  display: flex;
+  flex-direction: column;
+}
+
+.mosaic-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  background: #1c1814;
+}
+
+.mosaic-tile {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #2a241c;
+}
+
+.mosaic-chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 3.5rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(
+    to top,
+    rgba(28, 24, 20, 0.88) 0%,
+    rgba(28, 24, 20, 0.45) 55%,
+    transparent 100%
+  );
+  color: #f6f0e4;
+  pointer-events: none;
+}
+
+.mosaic-chrome-copy {
+  min-width: 0;
+}
+
+.mosaic-kicker {
+  margin: 0 0 0.15rem;
+  font-family: var(--font-display), "Caveat", cursive;
+  font-size: 1.15rem;
+  opacity: 0.85;
+}
+
+.mosaic-chrome h2 {
+  margin: 0;
+  font-family: var(--font-display), "Caveat", cursive;
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.mosaic-chrome h2 em {
+  font-style: italic;
+}
+
+.mosaic-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.mosaic-close {
+  pointer-events: auto;
+  flex-shrink: 0;
+  background: color-mix(in srgb, #f6f0e4 12%, transparent);
+  border-color: #f6f0e4;
+  color: #f6f0e4;
+}
+
+.mosaic-close:hover:not(:disabled) {
+  background: color-mix(in srgb, #f6f0e4 22%, transparent);
+}
+
 /* Simple breakpoints — no fluid morphing */
 @media (max-width: 899px) {
   .map-page,

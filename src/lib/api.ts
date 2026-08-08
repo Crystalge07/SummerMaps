@@ -194,6 +194,22 @@ export async function getAllCheckins(): Promise<CheckIn[]> {
   return (data ?? []) as CheckIn[];
 }
 
+/** All finds for one device (personal mosaics / memories). */
+export async function getCheckinsForDevice(
+  deviceId: string,
+): Promise<CheckIn[]> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.getByDevice(deviceId);
+
+  const { data, error } = await supabase
+    .from("checkins")
+    .select("*")
+    .eq("device_id", deviceId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as CheckIn[];
+}
+
 export async function getProfileByDevice(
   deviceId: string,
 ): Promise<DeviceProfile | null> {
