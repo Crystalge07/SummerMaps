@@ -11,12 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  getAllCheckins,
-  getProfileByDeviceId,
-  getTodayCityCheckins,
-} from "@/lib/api";
-import { friendCodeFromDeviceId } from "@/lib/friendCode";
+import { getAllCheckins, getTodayCityCheckins } from "@/lib/api";
 import { captureMomentNearLabel } from "@/lib/landmarks";
 import {
   activeSince,
@@ -44,27 +39,6 @@ export function InsightsView() {
   const [today, setToday] = useState<CheckIn[]>([]);
   const [all, setAll] = useState<CheckIn[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [selected, setSelected] = useState<CheckIn | null>(null);
-  const [selectedLabel, setSelectedLabel] = useState("");
-
-  async function openSpot(checkIn: CheckIn) {
-    setSelected(checkIn);
-    setSelectedLabel("");
-    try {
-      const profile = await getProfileByDeviceId(checkIn.device_id);
-      const name = profile?.display_name?.trim();
-      setSelectedLabel(
-        name || profile?.code || friendCodeFromDeviceId(checkIn.device_id),
-      );
-    } catch {
-      setSelectedLabel(friendCodeFromDeviceId(checkIn.device_id));
-    }
-  }
-
-  function closeSpot() {
-    setSelected(null);
-    setSelectedLabel("");
-  }
 
   useEffect(() => {
     let cancelled = false;
@@ -103,13 +77,6 @@ export function InsightsView() {
         .slice(0, 10),
     [all],
   );
-  // Prefer `all` (select *) so location_name is present without changing queries.
-  const todaySpots = useMemo(() => {
-    const ids = new Set(today.map((c) => c.id));
-    return [...all]
-      .filter((c) => ids.has(c.id) && Boolean(c.photo_url?.trim()))
-      .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  }, [all, today]);
 
   const cityPaths: PathSeries[] = useMemo(
     () => [
@@ -177,26 +144,6 @@ export function InsightsView() {
               </li>
             ))}
           </ul>
-
-          <h3 className="spots-heading">Today&apos;s spots</h3>
-          {todaySpots.length === 0 ? (
-            <p className="spots-empty">No spots yet today — be the first</p>
-          ) : (
-            <div className="spots-grid">
-              {todaySpots.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="spots-grid-cell"
-                  onClick={() => void openSpot(c)}
-                  aria-label={`Open spot from ${format(new Date(c.created_at), "h:mm a")}`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={c.photo_url} alt="" />
-                </button>
-              ))}
-            </div>
-          )}
         </section>
 
         <section className="chart-panel">
@@ -325,58 +272,6 @@ export function InsightsView() {
           </div>
         </section>
       </div>
-
-      {selected && (
-        <div
-          className="spots-sheet-backdrop"
-          role="presentation"
-          onClick={closeSpot}
-        >
-          <div
-            className="spots-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Spot details"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="spots-sheet-close"
-              aria-label="Close"
-              onClick={closeSpot}
-            >
-              ×
-            </button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={selected.photo_url}
-              alt=""
-              className="spots-sheet-photo"
-            />
-            <div className="spots-sheet-body">
-              <p className="spots-sheet-meta">
-                <strong>
-                  {selectedLabel ||
-                    friendCodeFromDeviceId(selected.device_id)}
-                </strong>
-                <span>
-                  {format(new Date(selected.created_at), "h:mm a")}
-                </span>
-              </p>
-              {selected.caption?.trim() ? (
-                <p className="spots-sheet-caption">{selected.caption.trim()}</p>
-              ) : null}
-              <p className="spots-sheet-location">
-                {captureMomentNearLabel(
-                  selected.lat,
-                  selected.lng,
-                  selected.location_name,
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
