@@ -11,7 +11,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getAllCheckins, getTodayCityCheckins } from "@/lib/api";
+import {
+  getAllCheckins,
+  getProfileByDeviceId,
+  getTodayCityCheckins,
+} from "@/lib/api";
+import { friendCodeFromDeviceId } from "@/lib/friendCode";
 import {
   activeSince,
   dailyCounts,
@@ -39,6 +44,26 @@ export function InsightsView() {
   const [all, setAll] = useState<CheckIn[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [selected, setSelected] = useState<CheckIn | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState("");
+
+  async function openSpot(checkIn: CheckIn) {
+    setSelected(checkIn);
+    setSelectedLabel("");
+    try {
+      const profile = await getProfileByDeviceId(checkIn.device_id);
+      const name = profile?.display_name?.trim();
+      setSelectedLabel(
+        name || profile?.code || friendCodeFromDeviceId(checkIn.device_id),
+      );
+    } catch {
+      setSelectedLabel(friendCodeFromDeviceId(checkIn.device_id));
+    }
+  }
+
+  function closeSpot() {
+    setSelected(null);
+    setSelectedLabel("");
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -134,7 +159,7 @@ export function InsightsView() {
                   key={c.id}
                   type="button"
                   className="spots-grid-cell"
-                  onClick={() => setSelected(c)}
+                  onClick={() => void openSpot(c)}
                   aria-label={`Open spot from ${format(new Date(c.created_at), "h:mm a")}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -276,7 +301,7 @@ export function InsightsView() {
         <div
           className="spots-sheet-backdrop"
           role="presentation"
-          onClick={() => setSelected(null)}
+          onClick={closeSpot}
         >
           <div
             className="spots-sheet"
@@ -289,7 +314,7 @@ export function InsightsView() {
               type="button"
               className="spots-sheet-close"
               aria-label="Close"
-              onClick={() => setSelected(null)}
+              onClick={closeSpot}
             >
               ×
             </button>
@@ -301,7 +326,10 @@ export function InsightsView() {
             />
             <div className="spots-sheet-body">
               <p className="spots-sheet-meta">
-                <strong>Someone</strong>
+                <strong>
+                  {selectedLabel ||
+                    friendCodeFromDeviceId(selected.device_id)}
+                </strong>
                 <span>
                   {format(new Date(selected.created_at), "h:mm a")}
                 </span>
