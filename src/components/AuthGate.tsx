@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { checkUsernameAvailable } from "@/lib/api";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   normalizeUsername,
   USERNAME_MAX,
@@ -12,15 +13,22 @@ import {
 type Mode = "sign_in" | "sign_up";
 type Availability = "idle" | "checking" | "available" | "taken" | "invalid";
 
+/**
+ * Optional account panel for Profile — never blocks the app shell.
+ * Anonymous device users skip this entirely.
+ */
 export function AuthGate() {
   const {
     status,
     error: authError,
+    user,
+    profile,
     needsAuth,
     needsUsername,
     retry,
     signIn,
     signUp,
+    signOut,
     claimUsername,
   } = useAuth();
 
@@ -55,41 +63,32 @@ export function AuthGate() {
     return () => window.clearTimeout(handle);
   }, [needsUsername, username, formatError]);
 
+  if (!isSupabaseConfigured) return null;
+
   if (status === "loading") {
     return (
-      <main className="auth-page">
-        <div className="auth-page-inner">
-          <p className="panel-kicker">just a moment</p>
-          <h1>Loading…</h1>
-          <p className="auth-lede">Checking for a saved session.</p>
-        </div>
-      </main>
+      <section className="panel account-panel">
+        <p className="panel-kicker">account</p>
+        <p className="lede">Checking for a saved session…</p>
+      </section>
     );
   }
 
   if (status === "error") {
     return (
-      <main className="auth-page" aria-labelledby="auth-error-title">
-        <div className="auth-page-inner">
-          <p className="panel-kicker">connection</p>
-          <h1 id="auth-error-title">Couldn&apos;t load auth</h1>
-          <p className="auth-lede">
-            {authError ?? "Something went wrong connecting to Supabase."}
-          </p>
-          <ol className="auth-error-steps">
-            <li>
-              SQL Editor → run the latest <code>supabase/schema.sql</code>
-            </li>
-            <li>
-              Confirm Vercel / <code>.env.local</code> point at that Supabase
-              project
-            </li>
-          </ol>
-          <button type="button" className="btn primary" onClick={() => retry()}>
-            Try again
-          </button>
-        </div>
-      </main>
+      <section className="panel account-panel" aria-labelledby="auth-error-title">
+        <p className="panel-kicker">account</p>
+        <h2 id="auth-error-title">Couldn&apos;t load auth</h2>
+        <p className="lede">
+          {authError ?? "Something went wrong connecting to Supabase."}
+        </p>
+        <p className="lede">
+          You can still use the app with this device — login is optional.
+        </p>
+        <button type="button" className="btn primary" onClick={() => retry()}>
+          Try again
+        </button>
+      </section>
     );
   }
 
@@ -127,120 +126,116 @@ export function AuthGate() {
     }
 
     return (
-      <main className="auth-page" aria-labelledby="auth-title">
-        <div className="auth-page-inner">
-          <p className="brand auth-brand">The Little Things</p>
-          <p className="panel-kicker">your account</p>
-          <h1 id="auth-title">
-            {mode === "sign_up" ? "Create an account" : "Welcome back"}
-          </h1>
-          <p className="auth-lede">
-            {mode === "sign_up"
-              ? "Email keeps your finds recoverable. Friends only see the username you pick next — never your email."
-              : "Sign in to get back to your path and friends."}
-          </p>
-          <form className="auth-form" onSubmit={(e) => void onAuthSubmit(e)}>
-            <label className="field">
-              <span>Email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                disabled={busy}
-                required
-              />
-            </label>
-            <label className="field">
-              <span>Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={
-                  mode === "sign_up" ? "new-password" : "current-password"
-                }
-                minLength={6}
-                disabled={busy}
-                required
-              />
-            </label>
-            {formError && <p className="status error">{formError}</p>}
-            {confirmNote && <p className="status">{confirmNote}</p>}
-            <button type="submit" className="btn primary" disabled={busy}>
-              {busy
-                ? "Working…"
-                : mode === "sign_up"
-                  ? "Create account"
-                  : "Sign in"}
-            </button>
-          </form>
-          <button
-            type="button"
-            className="auth-switch"
-            onClick={() => {
-              setMode(mode === "sign_up" ? "sign_in" : "sign_up");
-              setFormError("");
-              setConfirmNote("");
-            }}
-            disabled={busy}
-          >
-            {mode === "sign_up"
-              ? "Already have an account? Sign in"
-              : "Need an account? Sign up"}
+      <section className="panel account-panel" aria-labelledby="auth-title">
+        <p className="panel-kicker">optional · sync across devices</p>
+        <h2 id="auth-title">
+          {mode === "sign_up" ? "Create an account" : "Welcome back"}
+        </h2>
+        <p className="lede">
+          {mode === "sign_up"
+            ? "Optional. This device already works without an account. Email lets you recover finds on another phone — friends only see the username you pick next."
+            : "Sign in to sync this device with your account. Skip anytime — the app works either way."}
+        </p>
+        <form className="auth-form" onSubmit={(e) => void onAuthSubmit(e)}>
+          <label className="field">
+            <span>Email</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              disabled={busy}
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete={
+                mode === "sign_up" ? "new-password" : "current-password"
+              }
+              minLength={6}
+              disabled={busy}
+              required
+            />
+          </label>
+          {formError && <p className="status error">{formError}</p>}
+          {confirmNote && <p className="status">{confirmNote}</p>}
+          <button type="submit" className="btn primary" disabled={busy}>
+            {busy
+              ? "Working…"
+              : mode === "sign_up"
+                ? "Create account"
+                : "Sign in"}
           </button>
-        </div>
-      </main>
+        </form>
+        <button
+          type="button"
+          className="auth-switch"
+          onClick={() => {
+            setMode(mode === "sign_up" ? "sign_in" : "sign_up");
+            setFormError("");
+            setConfirmNote("");
+          }}
+          disabled={busy}
+        >
+          {mode === "sign_up"
+            ? "Already have an account? Sign in"
+            : "Need an account? Sign up"}
+        </button>
+      </section>
     );
   }
 
-  if (!needsUsername) return null;
-
-  async function onUsernameSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setUsernameError("");
-    const invalid = validateUsername(username);
-    if (invalid) {
-      setUsernameError(invalid);
-      return;
-    }
-
-    setBusy(true);
-    try {
-      await claimUsername(username);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      if (msg === "username_taken" || msg.includes("username_taken")) {
-        setUsernameError("That username is taken. Try another.");
-        setAvailability("taken");
-      } else if (msg === "username_invalid") {
-        setUsernameError("Use lowercase letters, numbers, and underscores only.");
-      } else {
-        setUsernameError(msg || "Could not claim that username.");
+  if (needsUsername) {
+    async function onUsernameSubmit(e: React.FormEvent) {
+      e.preventDefault();
+      setUsernameError("");
+      const invalid = validateUsername(username);
+      if (invalid) {
+        setUsernameError(invalid);
+        return;
       }
-    } finally {
-      setBusy(false);
+
+      setBusy(true);
+      try {
+        await claimUsername(username);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg === "username_taken" || msg.includes("username_taken")) {
+          setUsernameError("That username is taken. Try another.");
+          setAvailability("taken");
+        } else if (msg === "username_invalid") {
+          setUsernameError(
+            "Use lowercase letters, numbers, and underscores only.",
+          );
+        } else {
+          setUsernameError(msg || "Could not claim that username.");
+        }
+      } finally {
+        setBusy(false);
+      }
     }
-  }
 
-  const hint =
-    availability === "checking"
-      ? "Checking…"
-      : availability === "available"
-        ? "Available"
-        : availability === "taken"
-          ? "Taken — try another"
-          : availability === "invalid"
-            ? formatError
-            : "Letters, numbers, underscores · 3–20 characters";
+    const hint =
+      availability === "checking"
+        ? "Checking…"
+        : availability === "available"
+          ? "Available"
+          : availability === "taken"
+            ? "Taken — try another"
+            : availability === "invalid"
+              ? formatError
+              : "Letters, numbers, underscores · 3–20 characters";
 
-  return (
-    <main className="auth-page" aria-labelledby="username-title">
-      <div className="auth-page-inner">
-        <p className="brand auth-brand">The Little Things</p>
+    return (
+      <section className="panel account-panel" aria-labelledby="username-title">
         <p className="panel-kicker">choose a name</p>
-        <h1 id="username-title">What should friends call you?</h1>
-        <p className="auth-lede">
+        <h2 id="username-title">What should friends call you?</h2>
+        <p className="lede">
           This is the only name others see or search for. Your email stays
           private.
         </p>
@@ -294,10 +289,45 @@ export function AuthGate() {
               availability === "checking"
             }
           >
-            {busy ? "Claiming…" : "Continue"}
+            {busy ? "Claiming…" : "Save username"}
           </button>
         </form>
-      </div>
-    </main>
+      </section>
+    );
+  }
+
+  // Signed in with username
+  return (
+    <section className="panel account-panel" aria-labelledby="account-title">
+      <p className="panel-kicker">account</p>
+      <h2 id="account-title">Signed in</h2>
+      <p className="lede">
+        {profile?.username ? (
+          <>
+            Friends see you as <strong>@{profile.username}</strong>
+            {user?.email ? (
+              <>
+                {" "}
+                · {user.email}
+              </>
+            ) : null}
+            .
+          </>
+        ) : (
+          "Your session is active on this device."
+        )}
+      </p>
+      <button
+        type="button"
+        className="btn"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void signOut().finally(() => setBusy(false));
+        }}
+      >
+        {busy ? "Signing out…" : "Sign out"}
+      </button>
+    </section>
   );
 }
