@@ -2,6 +2,36 @@
 Every check-in is a photo and a place. Every day is a path.
 See your day — and your friends' days — as one shared story.
 
+## Quick start
+
+```bash
+npm install
+cp .env.example .env.local
+# Optional but recommended:
+#   NEXT_PUBLIC_MAPBOX_TOKEN=pk....
+#   NEXT_PUBLIC_SUPABASE_URL=...
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+**Without Supabase:** the app uses localStorage. On **Circle**, click **Load demo paths**, then open the group map / city / pulse pages.
+
+**With Supabase:** run `supabase/schema.sql` in the SQL editor, fill `.env.local`, then `npm run seed`.
+
+### Routes
+| Route | Feature |
+| --- | --- |
+| `/check-in` | Photo + location check-in |
+| `/path` | Personal day path + replay |
+| `/group` | Create / join anonymous circle |
+| `/group/map` | Multi-color group paths + crossings |
+| `/city` | Public anonymized city layer |
+| `/dashboard` | City intelligence / Pulse |
+
+---
+
 ## The Core Idea
 Check in whenever you want (aim for ~hourly, never forced) with one photo.
 At any point, your day's check-ins connect into a path on a map.
