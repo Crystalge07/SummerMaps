@@ -58,7 +58,9 @@ export function CheckInForm() {
       setCoords(CITY_CENTER);
       setUseDemoLocation(true);
       setStatus("idle");
-      setMessage("Location unavailable — using downtown demo pin. You can still check in.");
+      setMessage(
+        "Location unavailable — using downtown demo pin. You can still check in.",
+      );
     }
   }
 
@@ -108,83 +110,90 @@ export function CheckInForm() {
 
   return (
     <div className="panel checkin-panel">
-      <div className="panel-kicker">Today&apos;s prompt</div>
-      <h1>
-        Find <em>{prompt}</em>
-      </h1>
-      <p className="lede">
-        Spot it in the world, take one photo, pin where you are. Opt-in only —
-        whenever you notice it.
-      </p>
+      <div className="checkin-copy">
+        <div className="panel-kicker">Today&apos;s prompt</div>
+        <h1>
+          Find <em>{prompt}</em>
+        </h1>
+        <p className="lede">
+          Spot it in the world, take one photo, pin where you are. Opt-in only —
+          whenever you notice it.
+        </p>
+        <p className="meta checkin-hint">
+          Works on phone or desktop — camera or upload, same flow.
+        </p>
+      </div>
 
-      <div className="photo-stage">
-        {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Check-in preview" />
-        ) : (
+      <div className="checkin-capture">
+        <div className="photo-stage">
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={preview} alt="Check-in preview" />
+          ) : (
+            <button
+              type="button"
+              className="photo-placeholder"
+              onClick={() => inputRef.current?.click()}
+            >
+              <span>Photo of today&apos;s {prompt}</span>
+            </button>
+          )}
+        </div>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
+        />
+
+        <label className="field">
+          <span>Caption (optional)</span>
+          <input
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Where did you spot it?"
+            maxLength={120}
+          />
+        </label>
+
+        <div className="actions">
           <button
             type="button"
-            className="photo-placeholder"
-            onClick={() => inputRef.current?.click()}
+            className="btn ghost"
+            onClick={grabLocation}
+            disabled={status === "uploading" || status === "locating"}
           >
-            <span>Photo of today&apos;s {prompt}</span>
+            {status === "locating"
+              ? "Getting place…"
+              : coords
+                ? useDemoLocation
+                  ? "Demo pin set"
+                  : "Location locked"
+                : "Grab location"}
           </button>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={submit}
+            disabled={!file || status === "uploading" || status === "locating"}
+          >
+            {status === "uploading" ? "Saving…" : "Pin it"}
+          </button>
+        </div>
+
+        {message && (
+          <p className={`status ${status === "error" ? "error" : ""}`}>
+            {message}
+          </p>
         )}
-      </div>
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="sr-only"
-        onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
-      />
-
-      <label className="field">
-        <span>Caption (optional)</span>
-        <input
-          value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-          placeholder="Where did you spot it?"
-          maxLength={120}
-        />
-      </label>
-
-      <div className="actions">
-        <button
-          type="button"
-          className="btn primary"
-          onClick={grabLocation}
-          disabled={status === "uploading" || status === "locating"}
-        >
-          {status === "locating"
-            ? "Getting place…"
-            : coords
-              ? useDemoLocation
-                ? "Demo pin set"
-                : "Location locked"
-              : "Grab location"}
-        </button>
-        <button
-          type="button"
-          className="btn primary"
-          onClick={submit}
-          disabled={!file || status === "uploading" || status === "locating"}
-        >
-          {status === "uploading" ? "Saving…" : "Pin it"}
-        </button>
-      </div>
-
-      {message && (
-        <p className={`status ${status === "error" ? "error" : ""}`}>
-          {message}
+        <p className="meta">
+          Storage: {storageMode() === "supabase" ? "Supabase" : "local demo"}
         </p>
-      )}
-
-      <p className="meta">
-        Storage: {storageMode() === "supabase" ? "Supabase" : "local demo"}
-      </p>
+      </div>
     </div>
   );
 }

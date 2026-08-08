@@ -56,7 +56,7 @@ function todayAt(hour: number, minute = 0) {
 const placeholderPhoto =
   "data:image/svg+xml," +
   encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1F8A70"/><stop offset="1" stop-color="#E85D4C"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="50%" y="52%" fill="white" font-size="42" font-family="Arial" text-anchor="middle">Pathline</text></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3F7A4C"/><stop offset="1" stop-color="#E56B3A"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="50%" y="52%" fill="white" font-size="36" font-family="Georgia, serif" text-anchor="middle">little things</text></svg>`,
   );
 
 function makeCheckins(
