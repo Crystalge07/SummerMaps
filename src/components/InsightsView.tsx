@@ -15,12 +15,9 @@ import {
 import { getAllCheckins, getTodayCityCheckins } from "@/lib/api";
 import {
   activeSince,
-  captionKeywords,
-  captionMoodShares,
   dailyCounts,
   densestCells,
   hourlyDistribution,
-  promptThemeCounts,
   uniqueContributors,
 } from "@/lib/stats";
 import type { CheckIn, PathSeries } from "@/lib/types";
@@ -64,9 +61,6 @@ export function InsightsView() {
   const byHour = useMemo(() => hourlyDistribution(today), [today]);
   const growth = useMemo(() => dailyCounts(all, 14), [all]);
   const densest = useMemo(() => densestCells(today, 5), [today]);
-  const promptThemes = useMemo(() => promptThemeCounts(all, 8), [all]);
-  const keywords = useMemo(() => captionKeywords(all, 10), [all]);
-  const mood = useMemo(() => captionMoodShares(all), [all]);
   const recent = useMemo(
     () =>
       [...all]
@@ -87,15 +81,6 @@ export function InsightsView() {
     ],
     [today],
   );
-
-  const moodInsight =
-    mood.labeled < 3
-      ? "Not enough captions yet to read the mood."
-      : mood.warm >= mood.curious && mood.warm >= mood.neutral
-        ? "Captions skew warm."
-        : mood.curious >= mood.warm && mood.curious >= mood.neutral
-          ? "Captions skew curious."
-          : "Captions mostly read neutral.";
 
   return (
     <main className="fill-page">
@@ -201,7 +186,7 @@ export function InsightsView() {
             <PathMap
               paths={cityPaths}
               anonymizePhotos
-              viewMode="lines"
+              viewMode="heatmap"
               focus="checkins"
             />
           </div>
@@ -264,96 +249,7 @@ export function InsightsView() {
             </article>
           </div>
         </section>
-
-        <section className="chart-panel">
-          <h2>Themes &amp; mood</h2>
-          <p className="meta chart-hint">
-            Citywide prompts and captions
-          </p>
-          <div className="themes-grid">
-            <div>
-              <h3 className="themes-subhead">Prompt themes</h3>
-              <ul className="theme-bars">
-                {promptThemes.length === 0 && (
-                  <li className="meta">No prompt data yet.</li>
-                )}
-                {promptThemes.map((t) => {
-                  const max = promptThemes[0]?.count || 1;
-                  return (
-                    <li key={t.label}>
-                      <span className="theme-label">{t.label}</span>
-                      <span
-                        className="theme-bar"
-                        style={{
-                          width: `${Math.max(8, (t.count / max) * 100)}%`,
-                        }}
-                      />
-                      <strong>{t.count}</strong>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-            <div>
-              <h3 className="themes-subhead">Caption keywords</h3>
-              <ul className="theme-chips">
-                {keywords.length === 0 && (
-                  <li className="meta">No captions yet.</li>
-                )}
-                {keywords.map((k) => (
-                  <li key={k.label}>
-                    <span className="theme-chip">
-                      {k.label} <em>{k.count}</em>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="mood-block">
-            <h3 className="themes-subhead">Community mood</h3>
-            <p className="mood-insight">{moodInsight}</p>
-            {mood.labeled > 0 && (
-              <div className="mood-bars">
-                <MoodRow label="Warm" count={mood.warm} total={mood.labeled} />
-                <MoodRow
-                  label="Curious"
-                  count={mood.curious}
-                  total={mood.labeled}
-                />
-                <MoodRow
-                  label="Neutral"
-                  count={mood.neutral}
-                  total={mood.labeled}
-                />
-              </div>
-            )}
-          </div>
-        </section>
       </div>
     </main>
-  );
-}
-
-function MoodRow({
-  label,
-  count,
-  total,
-}: {
-  label: string;
-  count: number;
-  total: number;
-}) {
-  const pct = total ? Math.round((count / total) * 100) : 0;
-  return (
-    <div className="mood-row">
-      <span>{label}</span>
-      <div className="mood-track">
-        <div className="mood-fill" style={{ width: `${pct}%` }} />
-      </div>
-      <strong>
-        {count} · {pct}%
-      </strong>
-    </div>
   );
 }
