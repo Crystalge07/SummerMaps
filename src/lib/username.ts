@@ -25,9 +25,12 @@ export function isUsernameTakenError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const message =
     "message" in err && typeof err.message === "string" ? err.message : "";
+  const code = "code" in err ? String(err.code) : "";
   return (
+    code === "23505" ||
     message.includes("username_taken") ||
     message.includes("duplicate key") ||
-    ("code" in err && err.code === "P0001" && message.includes("username_taken"))
+    message.includes("unique constraint") ||
+    (code === "P0001" && message.includes("username_taken"))
   );
 }

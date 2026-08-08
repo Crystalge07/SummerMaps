@@ -180,6 +180,23 @@ export const localStore = {
       );
   },
 
+  async removeFriendship(
+    myDeviceId: string,
+    friendDeviceId: string,
+  ): Promise<void> {
+    const friendships = read<Friendship[]>(FRIENDSHIPS_KEY, []);
+    const next = friendships.filter(
+      (f) =>
+        !(
+          (f.a_device_id === myDeviceId &&
+            f.b_device_id === friendDeviceId) ||
+          (f.a_device_id === friendDeviceId &&
+            f.b_device_id === myDeviceId)
+        ),
+    );
+    write(FRIENDSHIPS_KEY, next);
+  },
+
   async listFriendships(): Promise<Friendship[]> {
     return read<Friendship[]>(FRIENDSHIPS_KEY, []);
   },

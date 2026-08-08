@@ -320,7 +320,6 @@ export function PathMap({
               anchor="bottom"
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
-                onSelectCheckIn?.(c);
                 if (
                   ownDeviceId &&
                   c.device_id === ownDeviceId &&
@@ -329,7 +328,9 @@ export function PathMap({
                   setPopup(c);
                   setConfirmDelete(false);
                   setDeleteError("");
+                  return;
                 }
+                onSelectCheckIn?.(c);
               }}
             >
               <button
@@ -386,15 +387,15 @@ export function PathMap({
               {canDeletePopup &&
                 (confirmDelete ? (
                   <div className="checkin-card-confirm">
-                    <span>Delete this find?</span>
+                    <span>Remove this spot?</span>
                     <div className="actions">
                       <button
                         type="button"
-                        className="btn primary"
+                        className="btn danger"
                         disabled={deleting}
-                        onClick={confirmPopupDelete}
+                        onClick={() => void confirmPopupDelete()}
                       >
-                        {deleting ? "Deleting…" : "Delete"}
+                        {deleting ? "Removing…" : "Confirm"}
                       </button>
                       <button
                         type="button"
@@ -409,10 +410,10 @@ export function PathMap({
                 ) : (
                   <button
                     type="button"
-                    className="btn ghost"
+                    className="btn danger"
                     onClick={() => setConfirmDelete(true)}
                   >
-                    Delete find
+                    Remove
                   </button>
                 ))}
             </div>
