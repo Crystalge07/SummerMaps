@@ -24,7 +24,6 @@ export function CheckInDetail({
           <p className="meta">Prompt: {checkIn.prompt}</p>
         )}
         {checkIn.caption && !anonymize && <p>{checkIn.caption}</p>}
-        {anonymize && <p>Someone spotted today&apos;s prompt here.</p>}
       </div>
     </aside>
   );

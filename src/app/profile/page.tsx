@@ -3,7 +3,7 @@ import { ProfileView } from "@/components/ProfileView";
 
 export default function ProfilePage() {
   return (
-    <main className="fill-page">
+    <main className="fill-page profile-shell">
       <p className="profile-page-header brand-script">your little things</p>
       <AuthGate />
       <ProfileView />
