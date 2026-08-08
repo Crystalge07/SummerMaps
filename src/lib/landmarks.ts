@@ -77,11 +77,11 @@ export function captureMomentNearLabel(
 ): string {
   const landmark = nearestLandmark(lat, lng);
   if (landmark) {
-    return `someone captured a moment near ${landmark.name}`;
+    return `Someone captured a moment near ${landmark.name}`;
   }
   const place = fallbackPlace?.trim();
   if (place) {
-    return `someone captured a moment near ${place}`;
+    return `Someone captured a moment near ${place}`;
   }
-  return "someone captured a moment nearby";
+  return "Someone captured a moment nearby";
 }
