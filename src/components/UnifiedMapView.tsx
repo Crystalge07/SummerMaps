@@ -41,6 +41,7 @@ export function UnifiedMapView() {
   const latParam = params.get("lat");
   const lngParam = params.get("lng");
   const layerParam = params.get("layer");
+  const freshParam = params.get("fresh");
 
   const [myPath, setMyPath] = useState<PathSeries | null>(null);
   const [friendPaths, setFriendPaths] = useState<PathSeries[]>([]);
@@ -136,7 +137,7 @@ export function UnifiedMapView() {
 
   useEffect(() => {
     void loadAll();
-  }, [loadAll]);
+  }, [loadAll, freshParam, layerParam]);
 
   const pathsOn = pathToggles.mine || pathToggles.friends;
 

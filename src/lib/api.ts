@@ -190,6 +190,13 @@ export async function getProfileByDevice(
   return (data as DeviceProfile) ?? null;
 }
 
+/** Alias used by friends UI — same as getProfileByDevice. */
+export async function getProfileByDeviceId(
+  deviceId: string,
+): Promise<DeviceProfile | null> {
+  return getProfileByDevice(deviceId);
+}
+
 export async function ensureDeviceProfile(
   deviceId: string,
   displayName?: string | null,

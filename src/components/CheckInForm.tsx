@@ -1,7 +1,7 @@
 "use client";
 
 import imageCompression from "browser-image-compression";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   createCheckIn,
@@ -17,6 +17,7 @@ type Status = "idle" | "locating" | "uploading" | "done" | "error";
 type CameraPhase = "idle" | "live" | "preview";
 
 export function CheckInForm() {
+  const router = useRouter();
   const auth = useAuthOptional();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -35,6 +36,14 @@ export function CheckInForm() {
   useEffect(() => {
     getDeviceId();
   }, []);
+
+  useEffect(() => {
+    if (status !== "done") return;
+    const timer = window.setTimeout(() => {
+      router.push("/path");
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [status, router]);
 
   useEffect(() => {
     captionRef.current = caption;
@@ -166,8 +175,8 @@ export function CheckInForm() {
     setStatus("done");
     setMessage(
       demo
-        ? "Pinned with a downtown demo place — location was unavailable."
-        : "Pinned. Your path just grew.",
+        ? "Spotted! (demo place) Taking you to your path…"
+        : "Spotted! Taking you to your path…",
     );
     setCaption("");
   }
@@ -236,13 +245,6 @@ export function CheckInForm() {
       capturingRef.current = false;
       setCapturing(false);
     }
-  }
-
-  function resetForAnother() {
-    clearPreview();
-    setPhase("idle");
-    setStatus("idle");
-    setMessage("");
   }
 
   const busy =
@@ -345,22 +347,15 @@ export function CheckInForm() {
           </label>
         )}
 
-        {status === "done" && (
-          <div className="actions">
-            <Link href="/path" className="btn primary">
-              See on my path
-            </Link>
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={resetForAnother}
-            >
-              Capture another
-            </button>
+        {status === "done" && preview && (
+          <div className="checkin-success" role="status" aria-live="polite">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="" className="checkin-success-thumb" />
+            <p className="status">Spotted! Taking you to your path…</p>
           </div>
         )}
 
-        {message && (
+        {message && status !== "done" && (
           <p className={`status ${status === "error" ? "error" : ""}`}>
             {message}
           </p>

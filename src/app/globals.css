@@ -772,6 +772,22 @@ a {
 }
 
 /* ——— Check-in cards (My Path) ——— */
+.checkin-success {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+  text-align: center;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.checkin-success-thumb {
+  width: min(180px, 50%);
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
 .checkin-card-list {
   display: grid;
   gap: 0.65rem;
