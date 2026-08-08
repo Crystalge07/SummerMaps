@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Caveat, Nunito } from "next/font/google";
 import { LocationConsent } from "@/components/LocationConsent";
 import { Nav } from "@/components/Nav";
-import { UsernamePicker } from "@/components/UsernamePicker";
+import { AuthGate } from "@/components/AuthGate";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
@@ -32,7 +32,7 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <Nav />
-          <UsernamePicker />
+          <AuthGate />
           <LocationConsent />
           {children}
         </AuthProvider>

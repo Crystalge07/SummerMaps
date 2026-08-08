@@ -12,10 +12,10 @@ export function LocationConsent() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Wait for auth + username so overlays don't stack.
+  // Wait for sign-in + username so overlays don't stack.
   const authReady =
     !isSupabaseConfigured ||
-    (auth?.status === "ready" && !auth.needsUsername);
+    (auth?.status === "ready" && !auth.needsAuth && !auth.needsUsername);
 
   useEffect(() => {
     if (!authReady) {

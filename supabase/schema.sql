@@ -57,9 +57,10 @@ create policy "checkin_photos_read" on storage.objects
 create policy "checkin_photos_insert" on storage.objects
   for insert with check (bucket_id = 'checkins');
 
--- ——— Anonymous auth + usernames ———
--- Prerequisites: Authentication → Providers → Allow anonymous sign-ins.
--- Enable CAPTCHA before public launch (anon sign-in is rate-limited per IP).
+-- ——— Auth profiles + usernames ———
+-- Login is email + password (Authentication → Providers → Email enabled).
+-- Username is the public handle friends see/search; claim via RPC only.
+-- For demos: Email provider → disable "Confirm email" so sign-up returns a session immediately.
 
 create extension if not exists citext;
 

@@ -4,10 +4,6 @@ import imageCompression from "browser-image-compression";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
-  AccountUpgradePrompt,
-  shouldOfferAccountUpgrade,
-} from "@/components/AccountUpgradePrompt";
-import {
   createCheckIn,
   storageMode,
   uploadCheckInPhoto,
@@ -34,7 +30,6 @@ export function CheckInForm() {
   const [message, setMessage] = useState("");
   const [startingCamera, setStartingCamera] = useState(false);
   const [capturing, setCapturing] = useState(false);
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const prompt = getTodaysPrompt();
 
   useEffect(() => {
@@ -175,9 +170,6 @@ export function CheckInForm() {
         : "Pinned. Your path just grew.",
     );
     setCaption("");
-    if (auth && shouldOfferAccountUpgrade(auth.isAnonymous)) {
-      setShowUpgrade(true);
-    }
   }
 
   async function capturePhoto() {
@@ -379,11 +371,6 @@ export function CheckInForm() {
           {auth?.profile ? ` · @${auth.profile.username}` : ""}
         </p>
       </section>
-
-      <AccountUpgradePrompt
-        open={showUpgrade}
-        onClose={() => setShowUpgrade(false)}
-      />
     </>
   );
 }
