@@ -14,8 +14,7 @@ function FriendsInner() {
   }, [params]);
 
   return (
-    <main className="page has-atmosphere">
-      <div className="illus-strip" aria-hidden />
+    <main className="split-page">
       <FriendsPanel initialCode={initialCode} />
     </main>
   );
@@ -23,11 +22,7 @@ function FriendsInner() {
 
 export default function FriendsPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="page has-atmosphere">Loading friends…</main>
-      }
-    >
+    <Suspense fallback={<main className="split-page">Loading friends…</main>}>
       <FriendsInner />
     </Suspense>
   );

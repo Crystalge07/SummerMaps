@@ -94,10 +94,9 @@ export function FriendsMapView() {
   }, [loadPaths]);
 
   return (
-    <div className="map-page has-atmosphere">
+    <div className="map-page">
       <div className="map-sidebar">
-        <div className="illus-strip" aria-hidden />
-        <div className="panel-kicker">Today · {prompt}</div>
+        <div className="panel-kicker">today · {prompt}</div>
         <h1>Friends&apos; paths</h1>
         <p className="lede">
           Lines connect each friend&apos;s finds in time order — a rough sense

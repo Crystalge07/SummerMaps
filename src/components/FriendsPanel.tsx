@@ -97,18 +97,28 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   }
 
   return (
-    <div className="panel friends-panel">
-      <div className="friends-intro">
-        <div className="panel-kicker">Little paths</div>
+    <>
+      <aside className="split-side">
+        <div className="panel-kicker">friends</div>
         <h1>Friends</h1>
         <p className="lede">
           Share your code with people you trust. Friends see each other&apos;s
           day as a connected path — strangers on the city map only see loose
           finds.
         </p>
-      </div>
+        {friends.length > 0 && (
+          <ul className="fallback-paths friends-list">
+            {friends.map((f) => (
+              <li key={f.device_id}>
+                <strong>{f.code}</strong>
+                {f.display_name ? ` · ${f.display_name}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
 
-      <div className="friends-grid">
+      <section className="split-main friends-actions">
         {me && (
           <div className="group-active">
             <p className="meta">Your friend code</p>
@@ -163,21 +173,10 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
             Add friend
           </button>
         </form>
-      </div>
 
-      {friends.length > 0 && (
-        <ul className="fallback-paths friends-list">
-          {friends.map((f) => (
-            <li key={f.device_id}>
-              <strong>{f.code}</strong>
-              {f.display_name ? ` · ${f.display_name}` : ""}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {message && <p className="status">{message}</p>}
-      <DemoSeedButton onLoaded={refresh} />
-    </div>
+        {message && <p className="status">{message}</p>}
+        <DemoSeedButton onLoaded={refresh} />
+      </section>
+    </>
   );
 }

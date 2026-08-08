@@ -3,7 +3,7 @@ import { CityMapView } from "@/components/CityMapView";
 
 export default function CityPage() {
   return (
-    <Suspense fallback={<div className="page has-atmosphere">Loading city…</div>}>
+    <Suspense fallback={<div className="fill-page">Loading city…</div>}>
       <CityMapView />
     </Suspense>
   );

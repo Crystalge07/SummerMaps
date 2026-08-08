@@ -59,10 +59,9 @@ export function CityMapView() {
         : null;
 
   return (
-    <div className="map-page has-atmosphere">
+    <div className="map-page">
       <div className="map-sidebar">
-        <div className="illus-strip" aria-hidden />
-        <div className="panel-kicker">Public · strangers</div>
+        <div className="panel-kicker">city finds</div>
         <h1>City finds</h1>
         <p className="lede">
           Today&apos;s prompt is <strong>{prompt}</strong>. Every find is a
