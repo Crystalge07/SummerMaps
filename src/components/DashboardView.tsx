@@ -71,11 +71,10 @@ export function DashboardView() {
   };
 
   return (
-    <div className="dashboard has-atmosphere">
-      <div className="illus-strip" aria-hidden />
-
+    <main className="fill-page">
+      <div className="dashboard">
       <div className="panel dash-hero">
-        <div className="panel-kicker">City intelligence</div>
+        <div className="panel-kicker">pulse</div>
         <h1>Pulse</h1>
         <p className="lede">
           Where today&apos;s prompt (<em>{prompt}</em>) showed up — busiest
@@ -191,6 +190,7 @@ export function DashboardView() {
             ))}
         </ul>
       </section>
-    </div>
+      </div>
+    </main>
   );
 }

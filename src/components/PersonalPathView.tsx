@@ -36,10 +36,9 @@ export function PersonalPathView() {
   }, []);
 
   return (
-    <div className="map-page has-atmosphere">
+    <div className="map-page">
       <div className="map-sidebar">
-        <div className="illus-strip" aria-hidden />
-        <div className="panel-kicker">Today · {prompt}</div>
+        <div className="panel-kicker">today · {prompt}</div>
         <h1>Your path</h1>
         <p className="lede">
           Your finds for <em>{prompt}</em> connect in time order — a line

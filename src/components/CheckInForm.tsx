@@ -265,9 +265,9 @@ export function CheckInForm() {
   }
 
   return (
-    <div className="panel checkin-panel">
-      <div className="checkin-copy">
-        <div className="panel-kicker">Today&apos;s prompt</div>
+    <>
+      <aside className="split-side">
+        <div className="panel-kicker">today&apos;s prompt</div>
         <h1>
           Find <em>{prompt}</em>
         </h1>
@@ -275,12 +275,12 @@ export function CheckInForm() {
           Spot it in the world, take one photo, pin where you are. Opt-in only —
           whenever you notice it.
         </p>
-        <p className="meta checkin-hint">
+        <p className="meta">
           Opens your camera to take one photo — no uploads.
         </p>
-      </div>
+      </aside>
 
-      <div className="checkin-capture">
+      <section className="split-main checkin-capture">
         <div
           className={`photo-stage${phase === "live" ? " photo-stage-live" : ""}`}
         >
@@ -398,7 +398,7 @@ export function CheckInForm() {
         <p className="meta">
           Storage: {storageMode() === "supabase" ? "Supabase" : "local demo"}
         </p>
-      </div>
-    </div>
+      </section>
+    </>
   );
 }

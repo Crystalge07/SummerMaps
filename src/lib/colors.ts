@@ -1,12 +1,12 @@
 export const PATH_COLORS = [
-  "#E56B3A", // poppy
-  "#3F7A4C", // leaf
-  "#D4A017", // butter gold
-  "#5A8FB0", // sky
-  "#C45C6A", // rose
-  "#6B8F71", // sage
-  "#C97B3A", // apricot
-  "#3D5C6E", // lake
+  "#7A9474", // sage
+  "#D89B8C", // blush
+  "#A9C4C8", // sky
+  "#E8C98A", // butter
+  "#5C7458", // deep sage
+  "#C4A484", // tan
+  "#8FA8A3", // mist
+  "#D4B5A0", // sand
 ] as const;
 
 export function colorForDevice(deviceId: string, index = 0): string {

@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
-import { Newsreader, Source_Sans_3 } from "next/font/google";
+import { Caveat, Nunito } from "next/font/google";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
 
-/** Matches pictureofhotdog.com: Freight Sans Pro (body) + Freight Big Pro (display). */
-const sourceSans = Source_Sans_3({
+const nunito = Nunito({
   subsets: ["latin"],
   variable: "--font-body",
 });
 
-const newsreader = Newsreader({
+const caveat = Caveat({
   subsets: ["latin"],
   variable: "--font-display",
-  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -27,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sourceSans.variable} ${newsreader.variable}`}>
+    <html lang="en" className={`${nunito.variable} ${caveat.variable}`}>
       <body>
         <Nav />
         {children}
