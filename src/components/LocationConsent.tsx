@@ -1,33 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuthOptional } from "@/lib/auth";
 import { getCurrentPosition } from "@/lib/geo";
-import { isSupabaseConfigured } from "@/lib/supabase";
 
 const CONSENT_KEY = "pathline_location_consent";
 
 export function LocationConsent() {
-  const auth = useAuthOptional();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Wait for sign-in + username so overlays don't stack.
-  const authReady =
-    !isSupabaseConfigured ||
-    (auth?.status === "ready" && !auth.needsAuth && !auth.needsUsername);
-
   useEffect(() => {
-    if (!authReady) {
-      setOpen(false);
-      return;
-    }
     try {
       if (!localStorage.getItem(CONSENT_KEY)) setOpen(true);
     } catch {
       // private mode / blocked storage — skip gate
     }
-  }, [authReady]);
+  }, []);
 
   async function accept() {
     setBusy(true);

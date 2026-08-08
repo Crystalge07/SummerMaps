@@ -1,7 +1,11 @@
 import { colorForDevice, shortLabel } from "./colors";
 import { friendCodeFromDeviceId } from "./friendCode";
 import { localStore } from "./localStore";
-import { getSupabase, isSupabaseConfigured } from "./supabase";
+import {
+  getSupabase,
+  getSupabaseStorage,
+  isSupabaseConfigured,
+} from "./supabase";
 import type {
   CheckIn,
   CreateCheckInInput,
@@ -28,14 +32,28 @@ export async function uploadCheckInPhoto(
   file: Blob,
   deviceId: string,
 ): Promise<string> {
-  const filename = `${deviceId}/${Date.now()}.jpg`;
-  const supabase = getSupabase();
+  // Always device-scoped path — works for anonymous + logged-in users.
+  const safeDevice = (deviceId || "anon").replace(/[^a-zA-Z0-9_-]/g, "");
+  const filename = `${safeDevice}/${Date.now()}.jpg`;
+
+  // Use anon storage client so a logged-in session JWT cannot block public uploads.
+  const supabase = getSupabaseStorage() ?? getSupabase();
   if (!supabase) return localStore.uploadPhoto(file, filename);
 
   const { error } = await supabase.storage
     .from("checkins")
     .upload(filename, file, { contentType: "image/jpeg", upsert: false });
-  if (error) throw error;
+  if (error) {
+    const msg = error.message || String(error);
+    if (/bucket not found/i.test(msg)) {
+      throw new Error(
+        'Storage bucket "checkins" was not found in this Supabase project. ' +
+          "Create a public bucket named exactly checkins (Storage → New bucket), " +
+          "or re-run the storage section of supabase/schema.sql on this project.",
+      );
+    }
+    throw error;
+  }
 
   const { data } = supabase.storage.from("checkins").getPublicUrl(filename);
   return data.publicUrl;
@@ -110,7 +128,8 @@ export async function deleteCheckIn(
 
   const path = storagePathFromPhotoUrl(row.photo_url);
   if (path && !path.startsWith("data:")) {
-    await supabase.storage.from("checkins").remove([path]);
+    const storage = getSupabaseStorage() ?? supabase;
+    await storage.storage.from("checkins").remove([path]);
   }
 }
 
