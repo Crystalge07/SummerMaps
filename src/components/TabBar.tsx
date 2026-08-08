@@ -54,13 +54,20 @@ export function TabBar() {
   );
 }
 
+const strokeProps = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
 function HomeIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="tab-icon">
-      <path
-        fill="currentColor"
-        d="M12 3.2 3.5 10.2v10.3h6.2v-6.1h4.6v6.1h6.2V10.2L12 3.2z"
-      />
+      <path {...strokeProps} d="M4 11.5 12 4l8 7.5" />
+      <path {...strokeProps} d="M6 10v9.5h12V10" />
+      <path {...strokeProps} d="M10 19.5v-6h4v6" />
     </svg>
   );
 }
@@ -69,9 +76,10 @@ function MapIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="tab-icon">
       <path
-        fill="currentColor"
-        d="M14.5 3.2 9.5 5.1 3.5 3.2v17.6l6 1.9 5-1.9 6 1.9V4.1l-6-0.9zm0 1.9 4.5.7v13.6l-4.5-1.4V5.1zm-5 1.7v13.6l-4.5-1.4V5.4l4.5 1.4z"
+        {...strokeProps}
+        d="M14.5 4 9.5 5.8 3.5 4v14.5l6 1.7 5-1.7 6 1.7V5.5z"
       />
+      <path {...strokeProps} d="M9.5 5.8v14.4M14.5 4v14.5" />
     </svg>
   );
 }
@@ -79,10 +87,10 @@ function MapIcon() {
 function FriendsIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="tab-icon">
-      <path
-        fill="currentColor"
-        d="M8.5 7.5a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6zm7 1.2a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6zM4.2 18.8c.4-2.6 2.6-4.2 4.3-4.2h.1c1.7 0 3.9 1.6 4.3 4.2v.5H4.2v-.5zm8.9-.3c-.2-1.5.2-2.8 1-3.7.7-.8 1.7-1.2 2.7-1.2h.2c1.4 0 3.1 1.2 3.6 3.4v.5h-7.5v-.1z"
-      />
+      <circle cx="8.5" cy="8.5" r="2.6" {...strokeProps} />
+      <circle cx="16" cy="9.8" r="2.1" {...strokeProps} />
+      <path {...strokeProps} d="M4 19c.5-2.6 2.4-4.2 4.5-4.2s4 1.6 4.5 4.2" />
+      <path {...strokeProps} d="M13.4 15.3c1.8.2 3.4 1.6 3.8 3.7" />
     </svg>
   );
 }
@@ -90,10 +98,8 @@ function FriendsIcon() {
 function ProfileIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="tab-icon">
-      <path
-        fill="currentColor"
-        d="M12 4.5a3.8 3.8 0 1 1 0 7.6 3.8 3.8 0 0 1 0-7.6zM5.2 19.5c.5-3.2 3.2-5.2 6.8-5.2s6.3 2 6.8 5.2v.8H5.2v-.8z"
-      />
+      <circle cx="12" cy="8.2" r="3.6" {...strokeProps} />
+      <path {...strokeProps} d="M5.2 19.5c.5-3.2 3.2-5.2 6.8-5.2s6.3 2 6.8 5.2" />
     </svg>
   );
 }

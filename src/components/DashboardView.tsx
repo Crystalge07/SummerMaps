@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
-  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -317,7 +316,7 @@ export function DashboardView() {
 
         <div className="panel dash-hero">
           <div className="panel-kicker">profile · pulse</div>
-          <h1>Pulse</h1>
+          <h1>The pulse</h1>
           <p className="lede">
             Where today&apos;s prompt (<em>{prompt}</em>) showed up — busiest
             hours and densest spots. Tap a stat to explore it. Aggregates only;
@@ -381,22 +380,30 @@ export function DashboardView() {
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={byHour}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#d5dde3" />
                 <XAxis
                   dataKey="hour"
-                  tick={{ fill: "#405463", fontSize: 11 }}
+                  tick={{ fill: "#6b7c6b", fontSize: 11 }}
+                  axisLine={{ stroke: "#ddd2bc" }}
+                  tickLine={false}
                   interval={1}
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fill: "#405463", fontSize: 12 }}
+                  tick={{ fill: "#6b7c6b", fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
                   domain={[0, "auto"]}
                 />
                 <Tooltip
                   formatter={(value) => [value ?? 0, "finds"]}
                   labelFormatter={(hour) => `${hour}:00`}
+                  contentStyle={{
+                    background: "#fdfaf4",
+                    border: "1px solid #ddd2bc",
+                    borderRadius: 10,
+                  }}
                 />
-                <Bar dataKey="count" fill="#1F8A70" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="#4a7c59" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

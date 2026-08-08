@@ -241,7 +241,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
               {copied === "code" ? "Copied ✓" : username ? "Copy username" : "Copy code"}
             </button>
             <button type="button" className="btn ghost" onClick={() => void onShare()}>
-              Share
+              <ShareIcon /> Share
             </button>
           </div>
           {shareUrl && (
@@ -344,8 +344,8 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
           <div className="friends-empty">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/path-mark.svg" alt="" width={56} height={56} />
-            <p>No one in your circle yet.</p>
-            <p className="meta">Share your username to get started.</p>
+            <p>Two paths that haven&apos;t connected yet.</p>
+            <p className="meta">Share your username to find each other.</p>
           </div>
         ) : (
           <ul className="friends-contact-list">
@@ -406,7 +406,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
                         href="/map?layer=friends"
                         aria-label={`Open map with ${label}`}
                       >
-                        →
+                        on the map →
                       </a>
                     </div>
                   )}
@@ -425,6 +425,22 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
 
       <DemoSeedButton onLoaded={() => void refresh()} />
     </div>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="18" cy="5" r="2.75" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="6" cy="12" r="2.75" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="18" cy="19" r="2.75" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M8.4 10.6l7.2-4.2M8.4 13.4l7.2 4.2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
