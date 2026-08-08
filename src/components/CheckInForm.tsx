@@ -31,6 +31,7 @@ export function CheckInForm() {
   const [message, setMessage] = useState("");
   const [startingCamera, setStartingCamera] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [spottedAt, setSpottedAt] = useState<string | null>(null);
   const prompt = getTodaysPrompt();
 
   useEffect(() => {
@@ -159,10 +160,18 @@ export function CheckInForm() {
     }
 
     setStatus("uploading");
-    setMessage(demo ? "Dropping your pin with a downtown demo place…" : "Dropping your pin…");
+    setMessage(
+      demo
+        ? "Dropping your pin with a downtown demo place…"
+        : "Dropping your pin…",
+    );
 
     const deviceId = getDeviceId();
-    const photoUrl = await uploadCheckInPhoto(file, deviceId);
+    // Geocode in parallel with upload; 3s race never blocks createCheckIn.
+    const [photoUrl, locationName] = await Promise.all([
+      uploadCheckInPhoto(file, deviceId),
+      reverseGeocodeWithTimeout(position.lat, position.lng),
+    ]);
     await createCheckIn({
       device_id: deviceId,
       prompt,
@@ -170,8 +179,10 @@ export function CheckInForm() {
       lng: position.lng,
       photo_url: photoUrl,
       caption: captionRef.current.trim() || null,
+      location_name: locationName || null,
     });
 
+    setSpottedAt(locationName || null);
     setStatus("done");
     setMessage(
       demo
@@ -346,9 +357,12 @@ export function CheckInForm() {
       )}
 
       {status === "done" && (
-        <p className="status checkin-status" role="status" aria-live="polite">
-          Spotted! Taking you to your path…
-        </p>
+        <div className="checkin-status" role="status" aria-live="polite">
+          <p className="status">{message || "Pin dropped! Taking you to your path…"}</p>
+          {spottedAt ? (
+            <p className="checkin-spotted-at">spotted at {spottedAt}</p>
+          ) : null}
+        </div>
       )}
 
       {message && status !== "done" && (
@@ -366,6 +380,44 @@ export function CheckInForm() {
       </p>
     </div>
   );
+}
+
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!token) return "";
+    const res = await fetch(
+      `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${lng}&latitude=${lat}&access_token=${token}&types=neighborhood,locality,place&limit=1`,
+    );
+    if (!res.ok) return "";
+    const data = (await res.json()) as {
+      features?: Array<{
+        properties?: { name?: string; place_formatted?: string };
+      }>;
+    };
+    const feature = data.features?.[0];
+    if (!feature) return "";
+    return (
+      feature.properties?.name ||
+      feature.properties?.place_formatted ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+async function reverseGeocodeWithTimeout(
+  lat: number,
+  lng: number,
+  ms = 3000,
+): Promise<string> {
+  return Promise.race([
+    reverseGeocode(lat, lng),
+    new Promise<string>((resolve) => {
+      window.setTimeout(() => resolve(""), ms);
+    }),
+  ]);
 }
 
 function CameraIcon() {

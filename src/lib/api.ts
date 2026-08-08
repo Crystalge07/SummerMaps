@@ -76,6 +76,7 @@ export async function createCheckIn(
       lng: input.lng,
       photo_url: input.photo_url,
       caption: input.caption ?? null,
+      location_name: input.location_name?.trim() || null,
     })
     .select()
     .single();

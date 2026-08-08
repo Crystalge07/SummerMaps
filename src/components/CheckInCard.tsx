@@ -46,6 +46,9 @@ export function CheckInCard({
       <img src={checkIn.photo_url} alt="" className="checkin-card-photo" />
       <div className="checkin-card-body">
         <strong>{format(new Date(checkIn.created_at), "h:mm a")}</strong>
+        {checkIn.location_name?.trim() ? (
+          <p className="checkin-location">{checkIn.location_name.trim()}</p>
+        ) : null}
         {checkIn.caption && <p>{checkIn.caption}</p>}
         {error && <p className="status error">{error}</p>}
         {confirming ? (

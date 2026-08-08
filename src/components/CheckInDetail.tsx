@@ -1,5 +1,4 @@
 import { format } from "date-fns";
-import { formatApproxLocation } from "@/lib/geo";
 import type { CheckIn } from "@/lib/types";
 
 export function CheckInDetail({
@@ -12,7 +11,7 @@ export function CheckInDetail({
   if (!checkIn) return null;
 
   const when = format(new Date(checkIn.created_at), "MMM d · h:mm a");
-  const place = formatApproxLocation(checkIn.lat, checkIn.lng);
+  const place = checkIn.location_name?.trim() || "";
 
   return (
     <aside className="detail">
@@ -20,7 +19,7 @@ export function CheckInDetail({
       <img src={checkIn.photo_url} alt="" />
       <div>
         <strong>{when}</strong>
-        <p className="meta detail-place">{place}</p>
+        {place ? <p className="checkin-location detail-place">{place}</p> : null}
         {checkIn.prompt && (
           <p className="meta">Prompt: {checkIn.prompt}</p>
         )}
