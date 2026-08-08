@@ -742,78 +742,7 @@ input.underline-input:focus {
 }
 
 .friends-page {
-  width: min(440px, 100%);
-  margin: 0 auto;
-  display: grid;
-  gap: 1.5rem;
-}
-
-.friends-hero-card {
-  position: relative;
-  background: var(--color-bg-card);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 1.5rem 1.2rem 1.15rem;
-  box-shadow: var(--card-shadow);
-  display: grid;
-  gap: 0.85rem;
-  text-align: center;
-  overflow: hidden;
-}
-
-.friends-hero-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(
-    90deg,
-    var(--color-green-secondary),
-    var(--color-accent),
-    var(--color-blush)
-  );
-}
-
-.friends-label {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-.friends-code-display {
-  display: inline-block;
-  justify-self: center;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: clamp(1.5rem, 7vw, 2rem);
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-indent: 0.22em;
-  line-height: 1.1;
-  color: #fdfaf4;
-  background: var(--color-green-primary);
-  padding: 0.6rem 1.1rem;
-  border-radius: 999px;
-}
-
-.friends-hero-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.55rem;
-}
-
-.friends-hero-actions .btn.primary {
-  background: var(--color-green-primary);
-  border-color: var(--color-green-primary);
-  color: #fdfaf4;
-}
-
-.friends-hero-actions .btn.primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-green-primary) 88%, black);
+  gap: 0;
 }
 
 .friends-link-copy {
@@ -843,16 +772,7 @@ input.underline-input:focus {
   color: var(--sage-deep);
 }
 
-.friends-section {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.friends-section h2 {
-  margin: 0;
-  font-family: var(--font-display), "Playfair Display", serif;
-  font-size: 1.55rem;
-  font-weight: 600;
+.friends-page .profile-block h2 {
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -913,10 +833,7 @@ input.underline-input:focus {
 
 .friends-empty {
   text-align: center;
-  padding: 1.75rem 1.25rem;
-  border: 1.5px dashed var(--sage);
-  border-radius: 16px;
-  background: var(--color-bg-card);
+  padding: 1.25rem 0.25rem;
   display: grid;
   gap: 0.35rem;
   justify-items: center;
@@ -943,12 +860,13 @@ input.underline-input:focus {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.85rem 0.9rem;
-  border-radius: 14px;
-  background: var(--color-bg-card);
-  border: 1px solid var(--line);
-  box-shadow: var(--card-shadow);
-  min-height: 3.25rem;
+  padding: 0.75rem 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  box-shadow: none;
+  min-height: 3rem;
 }
 
 .friends-contact-main {
@@ -1005,10 +923,11 @@ input.underline-input:focus {
 .friends-contact-confirm {
   display: grid;
   gap: 0.55rem;
-  padding: 0.85rem 0.9rem;
-  border-radius: 14px;
-  background: var(--color-bg-card);
-  border: 1px solid var(--line);
+  padding: 0.75rem 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
   font-size: 0.92rem;
 }
 
@@ -1427,18 +1346,25 @@ input.underline-input:focus {
   right: auto;
   bottom: 0.75rem;
   z-index: 6;
-  width: min(28rem, calc(100% - 10rem));
-  max-width: 28rem;
+  width: min(22rem, calc(100% - 1.5rem));
+  max-width: 22rem;
   margin: 0;
-  padding: 0.65rem;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--paper) 94%, white);
-  border: 1px solid var(--line);
-  box-shadow: var(--card-shadow-lg);
+  padding: 0.85rem;
+  border-radius: 22px;
+  background: var(--paper);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  box-shadow: 0 8px 24px rgba(44, 62, 45, 0.1);
 }
 
 .map-detail-float .detail {
   margin: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.map-detail-float .detail img {
+  border-radius: 16px;
+  border: 0;
 }
 
 .map-detail-close {
@@ -2365,39 +2291,61 @@ input.underline-input:focus {
 }
 
 /* ——— Profile ——— */
+.profile-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .profile-page-header {
-  margin: 1.1rem 1.25rem 0;
+  margin: 0.85rem 1.25rem 0.35rem;
   font-size: clamp(1.8rem, 6vw, 2.4rem);
   color: var(--sage-deep);
   text-align: center;
+  flex: 0 0 auto;
+}
+
+.profile-identity {
+  width: min(440px, 100%);
+  margin: 0 auto;
+  text-align: center;
+  padding: 0.65rem 1.25rem 0.85rem;
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  box-sizing: border-box;
+}
+
+.profile-identity-meta {
+  margin: 0;
 }
 
 .profile-avatar {
-  width: 76px;
-  height: 76px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  background: var(--color-green-secondary);
-  color: #fdfaf4;
+  background: color-mix(in srgb, var(--color-green-secondary) 55%, var(--paper));
+  color: var(--sage-deep);
   display: grid;
   place-items: center;
   font-family: var(--font-display), "Playfair Display", serif;
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 600;
-  margin: 0 auto 0.75rem;
+  margin: 0 0 0.45rem;
 }
 
 .profile-username {
   text-align: center;
   font-family: var(--font-display), "Playfair Display", serif;
-  font-size: 1.4rem;
+  font-size: 1.45rem;
   font-weight: 600;
   color: var(--ink);
-  margin: 0 0 0.25rem;
+  margin: 0;
 }
 
 .profile-signout {
   display: block;
-  margin: 0.5rem auto 0;
+  margin: 0.35rem auto 0;
   padding: 0;
   border: 0;
   background: none;
@@ -2407,6 +2355,16 @@ input.underline-input:focus {
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
+}
+
+.profile-handle {
+  margin: 0.15rem 0 0.35rem;
+  font-family: var(--font-display), "Playfair Display", serif;
+  font-size: clamp(1.55rem, 5vw, 1.9rem);
+  font-weight: 600;
+  color: var(--sage-deep);
+  letter-spacing: -0.01em;
+  text-align: center;
 }
 
 /* ——— Insights ——— */
@@ -2694,37 +2652,92 @@ input.underline-input:focus {
 
 /* ——— Profile ——— */
 .profile-page {
-  width: min(520px, 100%);
+  width: min(440px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: 0.85rem;
+  gap: 0;
   align-content: start;
-  padding: 0 1.25rem 1.5rem;
+  padding: 0 1.25rem 1.75rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .profile-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 0.35rem;
+  text-align: center;
 }
 
 .profile-avatar-img {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  border: 1px solid var(--line);
+  border: 0;
   flex-shrink: 0;
-  background: #e8f0ec;
+  background: color-mix(in srgb, var(--sage) 18%, var(--paper));
 }
 
 .profile-header-copy h1 {
   margin: 0;
-  font-size: 1.85rem;
+  font-family: var(--font-display), "Playfair Display", serif;
+  font-size: 1.65rem;
+  font-weight: 600;
 }
 
-.profile-section h2 {
-  margin: 0 0 0.45rem;
-  font-size: 1.05rem;
+.profile-member-since {
+  text-align: center;
+  margin: 0 0 0.35rem;
+}
+
+.profile-block {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1.05rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+}
+
+.profile-block:first-child {
+  border-top: 0;
+  padding-top: 0.35rem;
+}
+
+.profile-block h2 {
+  margin: 0;
+  font-family: var(--font-display), "Playfair Display", serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.profile-share-block {
+  text-align: center;
+  justify-items: center;
+}
+
+.profile-share-block .meta {
+  max-width: 28ch;
+}
+
+.profile-share-block .profile-share-actions {
+  justify-content: center;
+}
+
+.account-panel {
+  width: min(440px, calc(100% - 2.5rem));
+  margin: 0.5rem auto 0.75rem;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0.85rem 0 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-radius: 0;
+}
+
+.account-panel .auth-form,
+.account-panel .field {
+  text-align: left;
 }
 
 .profile-settings-toggle {
