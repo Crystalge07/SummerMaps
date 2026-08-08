@@ -346,8 +346,8 @@ export function PathMap({
                   title={format(new Date(c.created_at), "h:mm a")}
                   aria-label={
                     anonymizePhotos
-                      ? `Find at ${format(new Date(c.created_at), "h:mm a")}`
-                      : `Open find from ${format(new Date(c.created_at), "h:mm a")}`
+                      ? `Capture at ${format(new Date(c.created_at), "h:mm a")}`
+                      : `Open capture from ${format(new Date(c.created_at), "h:mm a")}`
                   }
                 >
                   <PhotoPin
@@ -400,6 +400,9 @@ export function PathMap({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={popup.photo_url} alt="" />
               <strong>{format(new Date(popup.created_at), "h:mm a")}</strong>
+              {popup.location_name?.trim() ? (
+                <p className="checkin-location">{popup.location_name.trim()}</p>
+              ) : null}
               {popup.caption && <p>{popup.caption}</p>}
               {deleteError && <p className="status error">{deleteError}</p>}
               {canDeletePopup &&
@@ -449,7 +452,7 @@ function FallbackList({ paths }: { paths: PathSeries[] }) {
         <li key={p.deviceId}>
           <span className="swatch" style={{ background: p.color }} />
           {p.label}: {p.checkins.length}{" "}
-          {p.connect === false ? "find" : "check-ins"}
+          {p.checkins.length === 1 ? "capture" : "captures"}
           {p.connect !== false && (
             <ol>
               {p.checkins.map((c) => (

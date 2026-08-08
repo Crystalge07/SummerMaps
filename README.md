@@ -28,8 +28,9 @@ Open [http://localhost:3000](http://localhost:3000).
 | --- | --- |
 | `/` | Home — today's prompt + camera check-in |
 | `/map` | Map — city pins; Paths toggle for Mine / Friends |
-| `/friends` | Add friends · share codes |
-| `/profile` | Pulse stats |
+| `/insights` | City intelligence — live activity, growth, themes, mood |
+| `/profile` | Account — settings, activity, share, friends entry |
+| `/friends` | Add friends · share codes (opened from Profile) |
 | `/capture`, `/check-in`, `/path`, `/city`, `/dashboard`, `/friends/map` | Redirect into the tabs above |
 
 ---

@@ -46,11 +46,14 @@ export function CheckInCard({
       <img src={checkIn.photo_url} alt="" className="checkin-card-photo" />
       <div className="checkin-card-body">
         <strong>{format(new Date(checkIn.created_at), "h:mm a")}</strong>
+        {checkIn.location_name?.trim() ? (
+          <p className="checkin-location">{checkIn.location_name.trim()}</p>
+        ) : null}
         {checkIn.caption && <p>{checkIn.caption}</p>}
         {error && <p className="status error">{error}</p>}
         {confirming ? (
           <div className="checkin-card-confirm" onClick={(e) => e.stopPropagation()}>
-            <span>Delete this find?</span>
+            <span>Delete this capture?</span>
             <div className="actions">
               <button
                 type="button"
@@ -76,8 +79,8 @@ export function CheckInCard({
         <button
           type="button"
           className="checkin-card-delete"
-          aria-label="Delete find"
-          title="Delete find"
+          aria-label="Delete capture"
+          title="Delete capture"
           onClick={(e) => {
             e.stopPropagation();
             setConfirming(true);

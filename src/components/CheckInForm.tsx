@@ -31,6 +31,7 @@ export function CheckInForm() {
   const [message, setMessage] = useState("");
   const [startingCamera, setStartingCamera] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [spottedAt, setSpottedAt] = useState<string | null>(null);
   const prompt = getTodaysPrompt();
 
   useEffect(() => {
@@ -159,10 +160,18 @@ export function CheckInForm() {
     }
 
     setStatus("uploading");
-    setMessage(demo ? "Dropping your pin with a downtown demo place…" : "Dropping your pin…");
+    setMessage(
+      demo
+        ? "Dropping your pin with a downtown demo place…"
+        : "Dropping your pin…",
+    );
 
     const deviceId = getDeviceId();
-    const photoUrl = await uploadCheckInPhoto(file, deviceId);
+    // Geocode in parallel with upload; 3s race never blocks createCheckIn.
+    const [photoUrl, locationName] = await Promise.all([
+      uploadCheckInPhoto(file, deviceId),
+      reverseGeocodeWithTimeout(position.lat, position.lng),
+    ]);
     await createCheckIn({
       device_id: deviceId,
       prompt,
@@ -170,8 +179,10 @@ export function CheckInForm() {
       lng: position.lng,
       photo_url: photoUrl,
       caption: captionRef.current.trim() || null,
+      location_name: locationName || null,
     });
 
+    setSpottedAt(locationName || null);
     setStatus("done");
     setMessage(
       demo
@@ -251,11 +262,11 @@ export function CheckInForm() {
     capturing || status === "locating" || status === "uploading";
 
   return (
-    <>
-      <aside className="split-side">
+    <div className="checkin-page">
+      <header className="checkin-header">
         <div className="panel-kicker">today&apos;s prompt</div>
         <h1>
-          Find <em>{prompt}</em>
+          Capture <em>{prompt}</em>
         </h1>
         <p className="lede">
           Spot it in the world, take one photo — we grab your place and pin it
@@ -264,109 +275,149 @@ export function CheckInForm() {
         <p className="meta">
           Opens your camera for one photo — no uploads from your library.
         </p>
-      </aside>
+      </header>
 
-      <section className="split-main checkin-capture">
-        <div
-          className={`photo-stage${phase === "live" ? " photo-stage-live" : ""}`}
-        >
-          {phase === "preview" && preview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="Capture preview" />
-          ) : phase === "live" ? (
-            <>
-              <video
-                ref={videoRef}
-                className="photo-camera"
-                playsInline
-                muted
-                autoPlay
-              />
-              {busy ? (
-                <div
-                  className="camera-processing"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {status === "locating"
-                    ? "Getting place…"
-                    : status === "uploading"
-                      ? "Pinning…"
-                      : "Processing…"}
-                </div>
-              ) : (
-                <div className="camera-chrome">
-                  <button
-                    type="button"
-                    className="camera-cancel"
-                    onClick={() => {
-                      stopCamera();
-                      setPhase("idle");
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="camera-shutter"
-                    aria-label="Take photo"
-                    onClick={() => void capturePhoto()}
-                  >
-                    <span className="camera-shutter-inner" />
-                  </button>
-                  <span className="camera-chrome-spacer" aria-hidden="true" />
-                </div>
-              )}
-            </>
-          ) : (
-            <button
-              type="button"
-              className="photo-placeholder"
-              onClick={() => void startCamera()}
-              disabled={startingCamera || busy}
-            >
-              <CameraIcon />
-              <span>
-                {startingCamera ? "Opening camera…" : "tap to spot something"}
-              </span>
-            </button>
-          )}
-        </div>
-
-        {status !== "done" && (
-          <label className="field">
-            <span>Caption (optional)</span>
-            <input
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="where did you spot it?"
-              maxLength={120}
-              disabled={busy}
+      <div
+        className={`photo-stage${phase === "live" ? " photo-stage-live" : ""}`}
+      >
+        {phase === "preview" && preview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={preview} alt="Capture preview" />
+        ) : phase === "live" ? (
+          <>
+            <video
+              ref={videoRef}
+              className="photo-camera"
+              playsInline
+              muted
+              autoPlay
             />
-          </label>
+            {busy ? (
+              <div
+                className="camera-processing"
+                role="status"
+                aria-live="polite"
+              >
+                {status === "locating"
+                  ? "Getting place…"
+                  : status === "uploading"
+                    ? "Pinning…"
+                    : "Processing…"}
+              </div>
+            ) : (
+              <div className="camera-chrome">
+                <button
+                  type="button"
+                  className="camera-cancel"
+                  onClick={() => {
+                    stopCamera();
+                    setPhase("idle");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="camera-shutter"
+                  aria-label="Take photo"
+                  onClick={() => void capturePhoto()}
+                >
+                  <span className="camera-shutter-inner" />
+                </button>
+                <span className="camera-chrome-spacer" aria-hidden="true" />
+              </div>
+            )}
+          </>
+        ) : (
+          <button
+            type="button"
+            className="photo-placeholder"
+            onClick={() => void startCamera()}
+            disabled={startingCamera || busy}
+          >
+            <CameraIcon />
+            <span>
+              {startingCamera ? "Opening camera…" : "tap to spot something"}
+            </span>
+          </button>
         )}
+      </div>
 
-        {status === "done" && preview && (
-          <div className="checkin-success" role="status" aria-live="polite">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="" className="checkin-success-thumb" />
-            <p className="status">Spotted! Taking you to your path…</p>
-          </div>
-        )}
+      {status !== "done" && (
+        <label className="field checkin-caption">
+          <span className="sr-only">Caption (optional)</span>
+          <input
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="where did you spot it?"
+            maxLength={120}
+            disabled={busy}
+          />
+        </label>
+      )}
 
-        {message && status !== "done" && (
-          <p className={`status ${status === "error" ? "error" : ""}`}>
-            {message}
-          </p>
-        )}
+      {status === "done" && (
+        <div className="checkin-status" role="status" aria-live="polite">
+          <p className="status">{message || "Pin dropped! Taking you to your path…"}</p>
+          {spottedAt ? (
+            <p className="checkin-spotted-at">spotted at {spottedAt}</p>
+          ) : null}
+        </div>
+      )}
 
-        <p className="meta">
-          saving to your path · {storageMode() === "supabase" ? "synced" : "local demo"}
-          {auth?.profile ? ` · @${auth.profile.username}` : ""}
+      {message && status !== "done" && (
+        <p
+          className={`status checkin-status ${status === "error" ? "error" : ""}`}
+        >
+          {message}
         </p>
-      </section>
-    </>
+      )}
+
+      <p className="checkin-footer">
+        saving to your path ·{" "}
+        {storageMode() === "supabase" ? "synced" : "local demo"}
+        {auth?.profile ? ` · @${auth.profile.username}` : ""}
+      </p>
+    </div>
   );
+}
+
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!token) return "";
+    const res = await fetch(
+      `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${lng}&latitude=${lat}&access_token=${token}&types=neighborhood,locality,place&limit=1`,
+    );
+    if (!res.ok) return "";
+    const data = (await res.json()) as {
+      features?: Array<{
+        properties?: { name?: string; place_formatted?: string };
+      }>;
+    };
+    const feature = data.features?.[0];
+    if (!feature) return "";
+    return (
+      feature.properties?.name ||
+      feature.properties?.place_formatted ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+async function reverseGeocodeWithTimeout(
+  lat: number,
+  lng: number,
+  ms = 3000,
+): Promise<string> {
+  return Promise.race([
+    reverseGeocode(lat, lng),
+    new Promise<string>((resolve) => {
+      window.setTimeout(() => resolve(""), ms);
+    }),
+  ]);
 }
 
 function CameraIcon() {

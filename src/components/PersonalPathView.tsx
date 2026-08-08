@@ -66,7 +66,7 @@ export function PersonalPathView() {
         <div className="panel-kicker">today · {prompt}</div>
         <h1>Your path</h1>
         <p className="lede">
-          Your finds for <em>{prompt}</em> connect in time order — a line
+          Your captures for <em>{prompt}</em> connect in time order — a line
           through your day.
         </p>
         {loading ? (
@@ -81,7 +81,7 @@ export function PersonalPathView() {
 
         <div className="checkin-card-list">
           {checkins.length === 0 && !loading && (
-            <p className="meta">No finds yet today.</p>
+            <p className="meta">No captures yet today.</p>
           )}
           {checkins.map((c) => (
             <CheckInCard

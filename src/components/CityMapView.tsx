@@ -53,23 +53,23 @@ export function CityMapView() {
 
   const focusLabel =
     filterParam === "alltime"
-      ? "Showing all-time finds"
+      ? "Showing all-time captures"
       : filterParam === "checkins" || filterParam === "noticers"
-        ? "Focusing on today's finds"
+        ? "Focusing on today's captures"
         : null;
 
   return (
     <div className="map-page">
       <div className="map-sidebar">
-        <div className="panel-kicker">city finds</div>
-        <h1>City finds</h1>
+        <div className="panel-kicker">city captures</div>
+        <h1>City captures</h1>
         <p className="lede">
-          Today&apos;s prompt is <strong>{prompt}</strong>. Every find is a
+          Today&apos;s prompt is <strong>{prompt}</strong>. Every capture is a
           single pin — no paths, no names. You can&apos;t tell which photos
           came from the same stranger.
         </p>
         {focusLabel && <p className="meta filter-note">{focusLabel}</p>}
-        <p className="meta">{pins.length} finds on the map</p>
+        <p className="meta">{pins.length} captures on the map</p>
 
         <div className="view-toggle" role="group" aria-label="Map view">
           <button
