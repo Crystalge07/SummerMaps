@@ -22,6 +22,7 @@ export function CheckInForm() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const capturedFileRef = useRef<File | null>(null);
   const capturingRef = useRef(false);
   const captionRef = useRef("");
   const [phase, setPhase] = useState<CameraPhase>("idle");
@@ -97,6 +98,7 @@ export function CheckInForm() {
       URL.revokeObjectURL(previewUrlRef.current);
       previewUrlRef.current = null;
     }
+    capturedFileRef.current = null;
     setPreview(null);
   }
 
@@ -190,6 +192,7 @@ export function CheckInForm() {
         : "Pin dropped! Taking you to your path…",
     );
     setCaption("");
+    capturedFileRef.current = null;
   }
 
   async function capturePhoto() {
@@ -239,10 +242,11 @@ export function CheckInForm() {
       }
       const url = URL.createObjectURL(asFile);
       previewUrlRef.current = url;
+      capturedFileRef.current = asFile;
       setPreview(url);
       setPhase("preview");
-
-      await pinCapture(asFile);
+      setStatus("idle");
+      setMessage("");
     } catch (err) {
       setStatus("error");
       setMessage(
@@ -258,8 +262,33 @@ export function CheckInForm() {
     }
   }
 
-  const busy =
-    capturing || status === "locating" || status === "uploading";
+  function retakePhoto() {
+    if (status === "locating" || status === "uploading") return;
+    clearPreview();
+    setStatus("idle");
+    setMessage("");
+    void startCamera();
+  }
+
+  async function postCapture() {
+    const file = capturedFileRef.current;
+    if (!file) {
+      setStatus("error");
+      setMessage("No photo to post. Retake and try again.");
+      return;
+    }
+    try {
+      await pinCapture(file);
+    } catch (err) {
+      setStatus("error");
+      setMessage(
+        err instanceof Error ? err.message : "Could not post that photo. Try again.",
+      );
+    }
+  }
+
+  const posting = status === "locating" || status === "uploading";
+  const busy = capturing || posting;
 
   return (
     <div className="checkin-page">
@@ -274,11 +303,42 @@ export function CheckInForm() {
       </header>
 
       <div
-        className={`photo-stage${phase === "live" ? " photo-stage-live" : ""}`}
+        className={`photo-stage${
+          phase === "live" || phase === "preview" ? " photo-stage-live" : ""
+        }`}
       >
         {phase === "preview" && preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Capture preview" />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="Capture preview" />
+            {posting ? (
+              <div
+                className="camera-processing"
+                role="status"
+                aria-live="polite"
+              >
+                {status === "locating" ? "Getting place…" : "Pinning…"}
+              </div>
+            ) : (
+              <div className="camera-chrome">
+                <button
+                  type="button"
+                  className="camera-cancel"
+                  onClick={retakePhoto}
+                >
+                  Retake
+                </button>
+                <span className="camera-chrome-spacer" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="camera-post"
+                  onClick={() => void postCapture()}
+                >
+                  Post
+                </button>
+              </div>
+            )}
+          </>
         ) : phase === "live" ? (
           <>
             <video
@@ -288,17 +348,13 @@ export function CheckInForm() {
               muted
               autoPlay
             />
-            {busy ? (
+            {capturing ? (
               <div
                 className="camera-processing"
                 role="status"
                 aria-live="polite"
               >
-                {status === "locating"
-                  ? "Getting place…"
-                  : status === "uploading"
-                    ? "Pinning…"
-                    : "Processing…"}
+                Processing…
               </div>
             ) : (
               <div className="camera-chrome">
@@ -333,7 +389,7 @@ export function CheckInForm() {
           >
             <CameraIcon />
             <span>
-                {startingCamera ? "Opening camera…" : "Capture a moment now"}
+              {startingCamera ? "Opening camera…" : "Capture a moment now"}
             </span>
           </button>
         )}
