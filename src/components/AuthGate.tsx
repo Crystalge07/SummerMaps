@@ -57,32 +57,28 @@ export function AuthGate() {
 
   if (status === "loading") {
     return (
-      <div className="consent-overlay" role="status" aria-live="polite">
-        <div className="consent-card">
+      <main className="auth-page">
+        <div className="auth-page-inner">
           <p className="panel-kicker">just a moment</p>
-          <h2>Loading…</h2>
-          <p>Checking for a saved session.</p>
+          <h1>Loading…</h1>
+          <p className="auth-lede">Checking for a saved session.</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (status === "error") {
     return (
-      <div
-        className="consent-overlay"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="auth-error-title"
-      >
-        <div className="consent-card">
+      <main className="auth-page" aria-labelledby="auth-error-title">
+        <div className="auth-page-inner">
           <p className="panel-kicker">connection</p>
-          <h2 id="auth-error-title">Couldn&apos;t load auth</h2>
-          <p>{authError ?? "Something went wrong connecting to Supabase."}</p>
+          <h1 id="auth-error-title">Couldn&apos;t load auth</h1>
+          <p className="auth-lede">
+            {authError ?? "Something went wrong connecting to Supabase."}
+          </p>
           <ol className="auth-error-steps">
             <li>
-              SQL Editor → run the latest <code>supabase/schema.sql</code>{" "}
-              (needs <code>profiles</code> + <code>claim_username</code>)
+              SQL Editor → run the latest <code>supabase/schema.sql</code>
             </li>
             <li>
               Confirm Vercel / <code>.env.local</code> point at that Supabase
@@ -93,7 +89,7 @@ export function AuthGate() {
             Try again
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -131,22 +127,19 @@ export function AuthGate() {
     }
 
     return (
-      <div
-        className="consent-overlay username-overlay"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="auth-title"
-      >
-        <div className="consent-card">
+      <main className="auth-page" aria-labelledby="auth-title">
+        <div className="auth-page-inner">
+          <p className="brand auth-brand">The Little Things</p>
           <p className="panel-kicker">your account</p>
-          <h2 id="auth-title">
+          <h1 id="auth-title">
             {mode === "sign_up" ? "Create an account" : "Welcome back"}
-          </h2>
-          <p>
-            Email keeps your finds recoverable. Friends only see the username
-            you pick next — never your email.
+          </h1>
+          <p className="auth-lede">
+            {mode === "sign_up"
+              ? "Email keeps your finds recoverable. Friends only see the username you pick next — never your email."
+              : "Sign in to get back to your path and friends."}
           </p>
-          <form className="username-form" onSubmit={(e) => void onAuthSubmit(e)}>
+          <form className="auth-form" onSubmit={(e) => void onAuthSubmit(e)}>
             <label className="field">
               <span>Email</span>
               <input
@@ -197,7 +190,7 @@ export function AuthGate() {
               : "Need an account? Sign up"}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -242,21 +235,17 @@ export function AuthGate() {
             : "Letters, numbers, underscores · 3–20 characters";
 
   return (
-    <div
-      className="consent-overlay username-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="username-title"
-    >
-      <div className="consent-card">
+    <main className="auth-page" aria-labelledby="username-title">
+      <div className="auth-page-inner">
+        <p className="brand auth-brand">The Little Things</p>
         <p className="panel-kicker">choose a name</p>
-        <h2 id="username-title">What should friends call you?</h2>
-        <p>
+        <h1 id="username-title">What should friends call you?</h1>
+        <p className="auth-lede">
           This is the only name others see or search for. Your email stays
           private.
         </p>
         <form
-          className="username-form"
+          className="auth-form"
           onSubmit={(e) => void onUsernameSubmit(e)}
         >
           <label className="field">
@@ -309,6 +298,6 @@ export function AuthGate() {
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }
