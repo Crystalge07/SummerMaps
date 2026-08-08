@@ -346,8 +346,8 @@ export function PathMap({
                   title={format(new Date(c.created_at), "h:mm a")}
                   aria-label={
                     anonymizePhotos
-                      ? `Find at ${format(new Date(c.created_at), "h:mm a")}`
-                      : `Open find from ${format(new Date(c.created_at), "h:mm a")}`
+                      ? `Capture at ${format(new Date(c.created_at), "h:mm a")}`
+                      : `Open capture from ${format(new Date(c.created_at), "h:mm a")}`
                   }
                 >
                   <PhotoPin
@@ -449,7 +449,7 @@ function FallbackList({ paths }: { paths: PathSeries[] }) {
         <li key={p.deviceId}>
           <span className="swatch" style={{ background: p.color }} />
           {p.label}: {p.checkins.length}{" "}
-          {p.connect === false ? "find" : "check-ins"}
+          {p.checkins.length === 1 ? "capture" : "captures"}
           {p.connect !== false && (
             <ol>
               {p.checkins.map((c) => (

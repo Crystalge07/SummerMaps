@@ -21,7 +21,7 @@ export function DemoSeedButton({ onLoaded }: { onLoaded?: () => void }) {
           try {
             const { friendCodes, count } = await loadLocalDemoSeed();
             setMsg(
-              `Loaded ${count} finds. Demo friends: ${friendCodes.join(", ")}.`,
+              `Loaded ${count} captures. Demo friends: ${friendCodes.join(", ")}.`,
             );
             onLoaded?.();
           } catch (err) {

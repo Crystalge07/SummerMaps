@@ -255,7 +255,7 @@ export function CheckInForm() {
       <header className="checkin-header">
         <div className="panel-kicker">today&apos;s prompt</div>
         <h1>
-          Find <em>{prompt}</em>
+          Capture <em>{prompt}</em>
         </h1>
         <p className="lede">
           Spot it in the world, take one photo — we grab your place and pin it

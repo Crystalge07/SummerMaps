@@ -95,7 +95,7 @@ export function FriendsMapView() {
         <div className="panel-kicker">today · {prompt}</div>
         <h1>Friends&apos; paths</h1>
         <p className="lede">
-          Lines connect each friend&apos;s finds in time order — a rough sense
+          Lines connect each friend&apos;s captures in time order — a rough sense
           of where they went while hunting the prompt.
         </p>
         <p className="meta">
