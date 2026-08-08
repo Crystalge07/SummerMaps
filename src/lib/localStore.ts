@@ -76,6 +76,17 @@ export const localStore = {
     return row;
   },
 
+  async deleteCheckIn(checkInId: string, deviceId: string): Promise<void> {
+    const checkins = read<CheckIn[]>(CHECKINS_KEY, []);
+    const next = checkins.filter(
+      (c) => !(c.id === checkInId && c.device_id === deviceId),
+    );
+    if (next.length === checkins.length) {
+      throw new Error("Check-in not found or not yours.");
+    }
+    write(CHECKINS_KEY, next);
+  },
+
   async getTodayByDevice(deviceId: string): Promise<CheckIn[]> {
     return read<CheckIn[]>(CHECKINS_KEY, [])
       .filter((c) => c.device_id === deviceId && isToday(c.created_at))

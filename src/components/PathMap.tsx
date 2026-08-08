@@ -1,8 +1,14 @@
 "use client";
 
 import { format } from "date-fns";
-import { useMemo } from "react";
-import Map, { Layer, Marker, NavigationControl, Source } from "react-map-gl/mapbox";
+import { useEffect, useMemo, useState } from "react";
+import Map, {
+  Layer,
+  Marker,
+  NavigationControl,
+  Popup,
+  Source,
+} from "react-map-gl/mapbox";
 import type { PathCrossing } from "@/lib/crossings";
 import { CITY_CENTER } from "@/lib/geo";
 import type { CheckIn, PathSeries } from "@/lib/types";
@@ -20,6 +26,9 @@ type Props = {
   viewMode?: MapViewMode;
   focus?: MapFocus;
   initialCenter?: { lat: number; lng: number };
+  /** When set, own pins open a popup with delete (My Path only). */
+  ownDeviceId?: string;
+  onDeleteCheckIn?: (checkIn: CheckIn) => Promise<void>;
 };
 
 function slicePath(checkins: CheckIn[], progress: number) {
@@ -39,8 +48,26 @@ export function PathMap({
   viewMode = "lines",
   focus = "all",
   initialCenter,
+  ownDeviceId,
+  onDeleteCheckIn,
 }: Props) {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  const [popup, setPopup] = useState<CheckIn | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  useEffect(() => {
+    if (!popup) return;
+    const stillThere = paths.some((p) =>
+      p.checkins.some((c) => c.id === popup.id),
+    );
+    if (!stillThere) {
+      setPopup(null);
+      setConfirmDelete(false);
+      setDeleteError("");
+    }
+  }, [paths, popup]);
 
   const visiblePaths = useMemo(
     () =>
@@ -81,6 +108,24 @@ export function PathMap({
     focus === "crossings" || (focus === "all" && crossings.length > 0);
   const lineOpacity = focus === "crossings" ? 0.25 : 0.9;
 
+  const canDeletePopup =
+    Boolean(popup && ownDeviceId && popup.device_id === ownDeviceId && onDeleteCheckIn);
+
+  async function confirmPopupDelete() {
+    if (!popup || !onDeleteCheckIn) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await onDeleteCheckIn(popup);
+      setPopup(null);
+      setConfirmDelete(false);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Could not delete.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (!token) {
     return (
       <div className="map-fallback">
@@ -103,6 +148,11 @@ export function PathMap({
         }}
         mapStyle="mapbox://styles/mapbox/light-v11"
         style={{ width: "100%", height: "100%" }}
+        onClick={() => {
+          setPopup(null);
+          setConfirmDelete(false);
+          setDeleteError("");
+        }}
       >
         <NavigationControl position="top-right" />
 
@@ -221,6 +271,15 @@ export function PathMap({
                 onClick={(e) => {
                   e.originalEvent.stopPropagation();
                   onSelectCheckIn?.(c);
+                  if (
+                    ownDeviceId &&
+                    c.device_id === ownDeviceId &&
+                    onDeleteCheckIn
+                  ) {
+                    setPopup(c);
+                    setConfirmDelete(false);
+                    setDeleteError("");
+                  }
                 }}
               >
                 <button
@@ -266,6 +325,62 @@ export function PathMap({
               />
             </Marker>
           ))}
+
+        {popup && (
+          <Popup
+            latitude={popup.lat}
+            longitude={popup.lng}
+            anchor="bottom"
+            offset={36}
+            closeOnClick={false}
+            onClose={() => {
+              setPopup(null);
+              setConfirmDelete(false);
+              setDeleteError("");
+            }}
+            className="checkin-popup"
+          >
+            <div className="checkin-popup-inner">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={popup.photo_url} alt="" />
+              <strong>{format(new Date(popup.created_at), "h:mm a")}</strong>
+              {popup.caption && <p>{popup.caption}</p>}
+              {deleteError && <p className="status error">{deleteError}</p>}
+              {canDeletePopup &&
+                (confirmDelete ? (
+                  <div className="checkin-card-confirm">
+                    <span>Delete this find?</span>
+                    <div className="actions">
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={deleting}
+                        onClick={confirmPopupDelete}
+                      >
+                        {deleting ? "Deleting…" : "Delete"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        disabled={deleting}
+                        onClick={() => setConfirmDelete(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    Delete find
+                  </button>
+                ))}
+            </div>
+          </Popup>
+        )}
       </Map>
     </div>
   );
