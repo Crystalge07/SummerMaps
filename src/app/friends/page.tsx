@@ -9,7 +9,7 @@ function FriendsInner() {
   const [initialCode, setInitialCode] = useState("");
 
   useEffect(() => {
-    const code = params.get("code");
+    const code = params.get("add") || params.get("code");
     if (code) setInitialCode(code.toUpperCase());
   }, [params]);
 
