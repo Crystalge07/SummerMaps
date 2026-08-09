@@ -33,6 +33,14 @@ export type Friendship = {
   created_at: string;
 };
 
+/** Pending request — becomes a friendship only after the recipient accepts. */
+export type FriendRequest = {
+  id: string;
+  from_device_id: string;
+  to_device_id: string;
+  created_at: string;
+};
+
 export type PathSeries = {
   deviceId: string;
   color: string;
