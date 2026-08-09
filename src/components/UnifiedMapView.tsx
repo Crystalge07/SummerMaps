@@ -93,6 +93,7 @@ export function UnifiedMapView() {
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgress, setReplayProgress] = useState(100);
   const [replayActive, setReplayActive] = useState(false);
+  const [replayHint, setReplayHint] = useState("");
   const [visiblePinIds, setVisiblePinIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -434,7 +435,12 @@ export function UnifiedMapView() {
 
   function onReplay() {
     const checkIns = replayCheckIns;
-    if (checkIns.length === 0) return;
+    if (checkIns.length === 0) {
+      setReplayHint("Enable a path to replay");
+      window.setTimeout(() => setReplayHint(""), 2500);
+      return;
+    }
+    setReplayHint("");
     abortRef.current += 1;
     setVisiblePinIds(new Set());
     setRevealedLineDevices(new Set());
@@ -487,8 +493,6 @@ export function UnifiedMapView() {
     !pathToggles.friends &&
     myPath !== null &&
     myPath.checkins.length === 0;
-
-  const showReplay = pathsOn && replayCheckIns.length > 0;
 
   return (
     <div className="unified-map">
@@ -585,7 +589,7 @@ export function UnifiedMapView() {
         focus={pathsOn ? "all" : "checkins"}
         initialCenter={initialCenter}
         ownDeviceId={myDeviceId}
-        replayVisual={showReplay ? replayVisual : null}
+        replayVisual={replayVisual}
         onDeleteCheckIn={
           myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
         }
@@ -602,18 +606,21 @@ export function UnifiedMapView() {
         </ul>
       )}
 
-      {showReplay && (
-        <div className="map-replay-dock">
-          <PathReplayControls
-            enabled
-            progress={replayProgress}
-            isReplaying={isReplaying}
-            onReplay={onReplay}
-            onScrub={onScrub}
-            onScrubEnd={onScrubEnd}
-          />
-        </div>
-      )}
+      <div className="map-replay-dock">
+        <PathReplayControls
+          enabled
+          progress={replayProgress}
+          isReplaying={isReplaying}
+          onReplay={onReplay}
+          onScrub={onScrub}
+          onScrubEnd={onScrubEnd}
+        />
+        {replayHint ? (
+          <p className="meta" role="status">
+            {replayHint}
+          </p>
+        ) : null}
+      </div>
 
       {showEmptyState && (
         <div className="map-empty-card">
