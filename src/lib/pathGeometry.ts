@@ -52,10 +52,52 @@ function cellKey(c: Pick<CheckIn, "lat" | "lng">) {
   return `${c.lat.toFixed(4)},${c.lng.toFixed(4)}`;
 }
 
+/** Samples per edge for curvedLineThrough — used to map stop index → curve index. */
+export const CURVE_SEGMENTS_PER_EDGE = 14;
+
+/** Curve vertex index for path stop `stopIndex` (0-based). */
+export function curveStopIndex(
+  stopIndex: number,
+  segmentsPerEdge = CURVE_SEGMENTS_PER_EDGE,
+): number {
+  return Math.max(0, stopIndex) * segmentsPerEdge;
+}
+
+/** Prefix of a precomputed curve through the first `stopIndex` stops (inclusive). */
+export function curveSliceToStop(
+  fullCurve: LngLat[],
+  stopIndex: number,
+  segmentsPerEdge = CURVE_SEGMENTS_PER_EDGE,
+): LngLat[] {
+  if (fullCurve.length === 0 || stopIndex < 0) return [];
+  const end = Math.min(
+    fullCurve.length - 1,
+    curveStopIndex(stopIndex, segmentsPerEdge),
+  );
+  return fullCurve.slice(0, end + 1);
+}
+
+/** Slice of a precomputed curve between two stop indices (inclusive). */
+export function curveSliceBetweenStops(
+  fullCurve: LngLat[],
+  fromStop: number,
+  toStop: number,
+  segmentsPerEdge = CURVE_SEGMENTS_PER_EDGE,
+): LngLat[] {
+  if (fullCurve.length === 0 || toStop <= fromStop) return [];
+  const a = curveStopIndex(fromStop, segmentsPerEdge);
+  const b = Math.min(
+    fullCurve.length - 1,
+    curveStopIndex(toStop, segmentsPerEdge),
+  );
+  if (b <= a) return [];
+  return fullCurve.slice(a, b + 1);
+}
+
 /** Catmull-Rom spline through stops (lng/lat), for a soft curved path. */
 export function curvedLineThrough(
   coords: LngLat[],
-  segmentsPerEdge = 14,
+  segmentsPerEdge = CURVE_SEGMENTS_PER_EDGE,
 ): LngLat[] {
   if (coords.length === 0) return [];
   if (coords.length === 1) return [coords[0]];

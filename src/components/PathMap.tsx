@@ -12,7 +12,9 @@ import MapboxMap, {
 import type { PathCrossing } from "@/lib/crossings";
 import { CITY_CENTER } from "@/lib/geo";
 import {
+  CURVE_SEGMENTS_PER_EDGE,
   curvedLineThrough,
+  curveSliceToStop,
   displayCoordsByCheckInId,
 } from "@/lib/pathGeometry";
 import { displayCreatedAt } from "@/lib/prompts";
@@ -251,30 +253,54 @@ export function PathMap({
 
   const pathLines = useMemo(() => {
     if (!showLines) return [];
-    return visiblePaths
+    // Chronological replay: curve through ALL stops on `paths`, then reveal a
+    // prefix so the shape never jumps. Legacy progress mode: use sliced paths.
+    const sourcePaths =
+      chronologicalMode && replayVisual ? paths : visiblePaths;
+
+    return sourcePaths
       .filter((path) => path.connect !== false)
       .filter((path) => {
         if (!chronologicalMode || !replayVisual) return true;
         return replayVisual.lineDeviceIds.has(path.deviceId);
       })
       .map((path) => {
-        const sorted = [...path.checkins].sort((a, b) =>
+        const sortedAll = [...path.checkins].sort((a, b) =>
           a.created_at.localeCompare(b.created_at),
         );
-        if (sorted.length < 2) return null;
-        const stops = sorted.map((c) => {
+        if (sortedAll.length < 2) return null;
+        const stops = sortedAll.map((c) => {
           const pos = displayCoords.get(c.id) ?? { lat: c.lat, lng: c.lng };
           return [pos.lng, pos.lat] as [number, number];
         });
+        const fullCurve = curvedLineThrough(stops, CURVE_SEGMENTS_PER_EDGE);
+
+        if (chronologicalMode && replayVisual) {
+          const revealedCount = sortedAll.filter((c) =>
+            replayVisual.visiblePinIds.has(c.id),
+          ).length;
+          if (revealedCount < 2) return null;
+          return {
+            deviceId: path.deviceId,
+            color: path.color,
+            coordinates: curveSliceToStop(
+              fullCurve,
+              revealedCount - 1,
+              CURVE_SEGMENTS_PER_EDGE,
+            ),
+          };
+        }
+
         return {
           deviceId: path.deviceId,
           color: path.color,
-          coordinates: curvedLineThrough(stops),
+          coordinates: fullCurve,
         };
       })
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
   }, [
     showLines,
+    paths,
     visiblePaths,
     chronologicalMode,
     replayVisual,
