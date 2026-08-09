@@ -206,14 +206,17 @@ export function ProfileView() {
       )}
 
       {signedIn && (
-        <button
-          type="button"
-          className="profile-signout-link"
-          disabled={signingOut}
-          onClick={() => void onSignOut()}
-        >
-          {signingOut ? "Signing out…" : "Sign out"}
-        </button>
+        <div className="profile-signout-footer">
+          <button
+            type="button"
+            className="signout-link"
+            disabled={signingOut}
+            onClick={() => void onSignOut()}
+          >
+            {signingOut ? "Signing out…" : "Sign out"}
+          </button>
+          <p className="signout-caption">Your spots and path stay saved.</p>
+        </div>
       )}
     </div>
   );
