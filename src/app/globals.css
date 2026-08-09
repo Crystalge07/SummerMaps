@@ -3011,8 +3011,6 @@ input.underline-input:focus {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  overflow: visible;
-  position: static;
 }
 
 .profile-page-header {
@@ -3728,6 +3726,34 @@ input.underline-input:focus {
 
 .profile-share-block .profile-share-actions {
   justify-content: center;
+}
+
+/* ——— Compact share utility strip (Profile) ——— */
+.share-card {
+  padding: 0.85rem 1rem;
+  margin: 0.25rem 0 0.9rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-green-secondary) 10%, var(--color-bg-card));
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.share-label {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-green-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.share-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.share-actions .btn {
+  flex: 1 1 0;
 }
 
 .account-panel {
