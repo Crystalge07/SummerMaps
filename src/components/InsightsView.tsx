@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -11,7 +11,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getAllCheckins, getTodayCityCheckins } from "@/lib/api";
+import {
+  getAllCheckins,
+  getProfileByDeviceId,
+  getTodayCityCheckins,
+} from "@/lib/api";
 import { captureMomentNearLabel } from "@/lib/landmarks";
 import {
   activeSince,
@@ -39,6 +43,21 @@ export function InsightsView() {
   const [today, setToday] = useState<CheckIn[]>([]);
   const [all, setAll] = useState<CheckIn[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const profileCache = useRef<Map<string, string>>(new Map());
+  const [usernames, setUsernames] = useState<Record<string, string>>({});
+  const [showAll, setShowAll] = useState(false);
+
+  async function resolveUsername(deviceId: string): Promise<string> {
+    if (profileCache.current.has(deviceId)) {
+      return profileCache.current.get(deviceId)!;
+    }
+    const profile = await getProfileByDeviceId(deviceId);
+    const name =
+      profile?.display_name ||
+      deviceId.replace(/-/g, "").slice(0, 6).toUpperCase();
+    profileCache.current.set(deviceId, name);
+    return name;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +85,15 @@ export function InsightsView() {
     };
   }, []);
 
+  useEffect(() => {
+    all.forEach(async (c) => {
+      if (!usernames[c.device_id]) {
+        const name = await resolveUsername(c.device_id);
+        setUsernames((prev) => ({ ...prev, [c.device_id]: name }));
+      }
+    });
+  }, [all]);
+
   const live = useMemo(() => activeSince(all, LIVE_WINDOW_MS), [all]);
   const byHour = useMemo(() => hourlyDistribution(today), [today]);
   const growth = useMemo(() => dailyCounts(all, 14), [all]);
@@ -74,7 +102,7 @@ export function InsightsView() {
     () =>
       [...all]
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .slice(0, 10),
+        .slice(0, 3),
     [all],
   );
 
@@ -134,19 +162,65 @@ export function InsightsView() {
                   href={`/map?layer=city&view=lines&lat=${c.lat}&lng=${c.lng}`}
                   className="live-feed-row"
                 >
-                  <time
-                    className="live-feed-time"
-                    dateTime={c.created_at}
-                  >
+                  <time className="live-feed-time" dateTime={c.created_at}>
                     {format(new Date(c.created_at), "h:mm a")}
                   </time>
                   <span className="live-feed-body">
-                    {captureMomentNearLabel(c.lat, c.lng, c.location_name)}
+                    @
+                    {usernames[c.device_id] ||
+                      c.device_id.replace(/-/g, "").slice(0, 6).toUpperCase()}{" "}
+                    · {captureMomentNearLabel(c.lat, c.lng, c.location_name)}
                   </span>
                 </Link>
               </li>
             ))}
+            {all.length > 3 && (
+              <li>
+                <button
+                  className="see-all-btn"
+                  onClick={() => setShowAll(true)}
+                >
+                  See all {all.length} captures →
+                </button>
+              </li>
+            )}
           </ul>
+
+          {showAll && (
+            <div className="captures-sheet">
+              <div className="captures-sheet-inner">
+                <div className="captures-sheet-header">
+                  <h2>All captures today</h2>
+                  <button
+                    className="captures-close"
+                    onClick={() => setShowAll(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <ul className="captures-list">
+                  {[...all]
+                    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                    .map((c) => (
+                      <li key={c.id} className="captures-row">
+                        <time>
+                          {format(new Date(c.created_at), "h:mm a")}
+                        </time>
+                        <span>
+                          @
+                          {usernames[c.device_id] ||
+                            c.device_id
+                              .replace(/-/g, "")
+                              .slice(0, 6)
+                              .toUpperCase()}
+                          {c.location_name ? ` · ${c.location_name}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="chart-panel">

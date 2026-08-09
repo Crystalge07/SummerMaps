@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import {
   checkinsAsUnlinkedPins,
@@ -14,12 +20,16 @@ import {
 } from "@/lib/api";
 import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
+import { curvedLineThrough } from "@/lib/pathGeometry";
 import type { CheckIn, PathSeries } from "@/lib/types";
 import { CheckInDetail } from "./CheckInDetail";
-import { PathMap, type MapViewMode } from "./PathMap";
+import { PathMap, type MapViewMode, type PathReplayVisual } from "./PathMap";
 import { PathReplayControls } from "./PathReplayControls";
 
 type PathToggle = "mine" | "friends";
+
+const LINE_MS = 400;
+const PIN_MS = 250;
 
 function parseView(raw: string | null): MapViewMode {
   return raw === "heatmap" ? "heatmap" : "lines";
@@ -33,6 +43,26 @@ function initialPathToggles(layer: string | null): Record<PathToggle, boolean> {
 
 function initialPanelOpen(layer: string | null) {
   return layer === "mine" || layer === "friends";
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function stateAtIndex(checkIns: CheckIn[], count: number) {
+  const pinIds = new Set<string>();
+  const lineDevices = new Set<string>();
+  const lastByDevice = new Map<string, CheckIn>();
+  const n = Math.max(0, Math.min(count, checkIns.length));
+  for (let i = 0; i < n; i++) {
+    const c = checkIns[i];
+    if (lastByDevice.has(c.device_id)) lineDevices.add(c.device_id);
+    lastByDevice.set(c.device_id, c);
+    pinIds.add(c.id);
+  }
+  return { pinIds, lineDevices };
 }
 
 export function UnifiedMapView() {
@@ -59,7 +89,22 @@ export function UnifiedMapView() {
   const [viewMode, setViewMode] = useState<MapViewMode>(() =>
     parseView(viewParam),
   );
-  const [replayProgress, setReplayProgress] = useState(1);
+
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [replayProgress, setReplayProgress] = useState(100);
+  const [replayActive, setReplayActive] = useState(false);
+  const [visiblePinIds, setVisiblePinIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [revealedLineDevices, setRevealedLineDevices] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [expandingPinId, setExpandingPinId] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState<PathReplayVisual["drawing"]>(null);
+
+  const panelRef = useRef<HTMLElement | null>(null);
+  const abortRef = useRef(0);
+  const resumeFromRef = useRef(0);
 
   useEffect(() => {
     setViewMode(parseView(viewParam));
@@ -69,6 +114,16 @@ export function UnifiedMapView() {
     setPathToggles(initialPathToggles(layerParam));
     setPanelOpen(initialPanelOpen(layerParam));
   }, [layerParam]);
+
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = panelRef.current;
+      if (el && !el.contains(e.target as Node)) setPanelOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [panelOpen]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -144,9 +199,41 @@ export function UnifiedMapView() {
 
   const pathsOn = pathToggles.mine || pathToggles.friends;
 
+  const colorByDevice = useMemo(() => {
+    const map = new Map<string, string>();
+    if (myPath) map.set(myPath.deviceId, myPath.color);
+    for (const p of friendPaths) map.set(p.deviceId, p.color);
+    return map;
+  }, [myPath, friendPaths]);
+
+  const replayCheckIns = useMemo(() => {
+    const list: CheckIn[] = [];
+    if (pathToggles.mine && myPath) list.push(...myPath.checkins);
+    if (pathToggles.friends) {
+      for (const path of friendPaths) list.push(...path.checkins);
+    }
+    return list.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }, [pathToggles, myPath, friendPaths]);
+
   const visiblePaths = useMemo(() => {
-    // Path overlays reuse the same check-in ids as city pins — drop those
-    // city pins so Marker keys stay unique and spots aren't doubled.
+    // During/after chronological replay: keep revealed pins even if their
+    // path toggle is off — toggles only gate lines (see lineDeviceIds).
+    if (replayActive) {
+      const cityLayer = cityPins.filter(
+        (pin) => !pin.checkins.some((c) => visiblePinIds.has(c.id)),
+      );
+      const next: PathSeries[] = [...cityLayer];
+      if (myPath?.checkins.some((c) => visiblePinIds.has(c.id))) {
+        next.push(myPath);
+      }
+      for (const path of friendPaths) {
+        if (path.checkins.some((c) => visiblePinIds.has(c.id))) {
+          next.push(path);
+        }
+      }
+      return next;
+    }
+
     const overlayIds = new Set<string>();
     if (pathToggles.mine && myPath) {
       for (const c of myPath.checkins) overlayIds.add(c.id);
@@ -168,7 +255,39 @@ export function UnifiedMapView() {
     if (pathToggles.mine && myPath) next.push(myPath);
     if (pathToggles.friends) next.push(...friendPaths);
     return next;
-  }, [cityPins, friendPaths, myPath, pathToggles]);
+  }, [
+    cityPins,
+    friendPaths,
+    myPath,
+    pathToggles,
+    replayActive,
+    visiblePinIds,
+  ]);
+
+  // Lines follow toggles; pins revealed in replay stay even if their path is toggled off.
+  const lineDeviceIds = useMemo(() => {
+    const allowed = new Set<string>();
+    if (pathToggles.mine && myPath) allowed.add(myPath.deviceId);
+    if (pathToggles.friends) {
+      for (const p of friendPaths) allowed.add(p.deviceId);
+    }
+    const next = new Set<string>();
+    for (const id of revealedLineDevices) {
+      if (allowed.has(id)) next.add(id);
+    }
+    return next;
+  }, [revealedLineDevices, pathToggles, myPath, friendPaths]);
+
+  const replayVisual: PathReplayVisual | null = useMemo(() => {
+    if (!replayActive) return null;
+    return {
+      active: true,
+      visiblePinIds,
+      lineDeviceIds,
+      drawing,
+      expandingPinId,
+    };
+  }, [replayActive, visiblePinIds, lineDeviceIds, drawing, expandingPinId]);
 
   useEffect(() => {
     if (!selected) return;
@@ -217,6 +336,144 @@ export function UnifiedMapView() {
     setSelected((prev) => (prev?.id === checkIn.id ? null : prev));
   }
 
+  const animateLine = useCallback(
+    (
+      from: CheckIn,
+      to: CheckIn,
+      color: string,
+      token: number,
+    ): Promise<void> => {
+      const coords = curvedLineThrough([
+        [from.lng, from.lat],
+        [to.lng, to.lat],
+      ]);
+      const start = performance.now();
+      return new Promise((resolve) => {
+        const tick = (now: number) => {
+          if (abortRef.current !== token) {
+            setDrawing(null);
+            resolve();
+            return;
+          }
+          const t = Math.min(1, (now - start) / LINE_MS);
+          const count = Math.max(2, Math.ceil(coords.length * t));
+          setDrawing({
+            deviceId: to.device_id,
+            coordinates: coords.slice(0, count),
+            color,
+          });
+          if (t < 1) {
+            requestAnimationFrame(tick);
+          } else {
+            setDrawing(null);
+            resolve();
+          }
+        };
+        requestAnimationFrame(tick);
+      });
+    },
+    [],
+  );
+
+  const runReplayFrom = useCallback(
+    async (startIndex: number, checkIns: CheckIn[]) => {
+      if (checkIns.length === 0) return;
+      const token = ++abortRef.current;
+      setIsReplaying(true);
+      setReplayActive(true);
+      setDrawing(null);
+      setExpandingPinId(null);
+
+      const base = stateAtIndex(checkIns, startIndex);
+      const pinIds = new Set(base.pinIds);
+      const lineDevices = new Set(base.lineDevices);
+      const lastByDevice = new Map<string, CheckIn>();
+      for (let i = 0; i < startIndex; i++) {
+        lastByDevice.set(checkIns[i].device_id, checkIns[i]);
+      }
+      setVisiblePinIds(new Set(pinIds));
+      setRevealedLineDevices(new Set(lineDevices));
+      setReplayProgress(
+        checkIns.length ? (startIndex / checkIns.length) * 100 : 0,
+      );
+
+      for (let i = startIndex; i < checkIns.length; i++) {
+        if (abortRef.current !== token) return;
+        const c = checkIns[i];
+        const prev = lastByDevice.get(c.device_id);
+        const color =
+          colorByDevice.get(c.device_id) ?? colorForDevice(c.device_id);
+
+        if (prev) {
+          await animateLine(prev, c, color, token);
+          if (abortRef.current !== token) return;
+          lineDevices.add(c.device_id);
+          setRevealedLineDevices(new Set(lineDevices));
+        }
+        lastByDevice.set(c.device_id, c);
+
+        pinIds.add(c.id);
+        setExpandingPinId(c.id);
+        setVisiblePinIds(new Set(pinIds));
+        await sleep(PIN_MS);
+        if (abortRef.current !== token) return;
+        setExpandingPinId(null);
+
+        setReplayProgress(((i + 1) / checkIns.length) * 100);
+        resumeFromRef.current = i + 1;
+      }
+
+      if (abortRef.current === token) {
+        setIsReplaying(false);
+        setReplayProgress(100);
+        resumeFromRef.current = checkIns.length;
+      }
+    },
+    [animateLine, colorByDevice],
+  );
+
+  function onReplay() {
+    const checkIns = replayCheckIns;
+    if (checkIns.length === 0) return;
+    abortRef.current += 1;
+    setVisiblePinIds(new Set());
+    setRevealedLineDevices(new Set());
+    setDrawing(null);
+    setExpandingPinId(null);
+    setReplayProgress(0);
+    setReplayActive(true);
+    resumeFromRef.current = 0;
+    void runReplayFrom(0, checkIns);
+  }
+
+  function onScrub(progress: number) {
+    const checkIns = replayCheckIns;
+    if (checkIns.length === 0) return;
+    const clamped = Math.max(0, Math.min(100, progress));
+    const count = Math.round((clamped / 100) * checkIns.length);
+    abortRef.current += 1;
+    setIsReplaying(false);
+    setDrawing(null);
+    setExpandingPinId(null);
+    setReplayActive(true);
+    const snap = stateAtIndex(checkIns, count);
+    setVisiblePinIds(snap.pinIds);
+    setRevealedLineDevices(snap.lineDevices);
+    setReplayProgress(clamped);
+    resumeFromRef.current = count;
+  }
+
+  function onScrubEnd(progress: number) {
+    const checkIns = replayCheckIns;
+    if (checkIns.length === 0) return;
+    const clamped = Math.max(0, Math.min(100, progress));
+    const count = Math.round((clamped / 100) * checkIns.length);
+    resumeFromRef.current = count;
+    if (count < checkIns.length) {
+      void runReplayFrom(count, checkIns);
+    }
+  }
+
   const myDeviceId = pathToggles.mine ? getDeviceId() || undefined : undefined;
 
   const legendPaths = [
@@ -231,8 +488,7 @@ export function UnifiedMapView() {
     myPath !== null &&
     myPath.checkins.length === 0;
 
-  const showReplay =
-    pathsOn && pathToggles.mine && !!myPath && myPath.checkins.length > 0;
+  const showReplay = pathsOn && replayCheckIns.length > 0;
 
   return (
     <div className="unified-map">
@@ -245,9 +501,8 @@ export function UnifiedMapView() {
         )}
 
         <aside
-          className={
-            panelOpen ? "map-paths-panel open" : "map-paths-panel"
-          }
+          ref={panelRef}
+          className={panelOpen ? "map-paths-panel open" : "map-paths-panel"}
         >
           <button
             type="button"
@@ -320,7 +575,7 @@ export function UnifiedMapView() {
         focus={pathsOn ? "all" : "checkins"}
         initialCenter={initialCenter}
         ownDeviceId={myDeviceId}
-        replayProgress={showReplay ? replayProgress : 1}
+        replayVisual={showReplay ? replayVisual : null}
         onDeleteCheckIn={
           myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
         }
@@ -339,7 +594,14 @@ export function UnifiedMapView() {
 
       {showReplay && (
         <div className="map-replay-dock">
-          <PathReplayControls enabled onProgress={setReplayProgress} />
+          <PathReplayControls
+            enabled
+            progress={replayProgress}
+            isReplaying={isReplaying}
+            onReplay={onReplay}
+            onScrub={onScrub}
+            onScrubEnd={onScrubEnd}
+          />
         </div>
       )}
 

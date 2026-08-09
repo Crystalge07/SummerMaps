@@ -10,10 +10,19 @@ import {
 } from "@/lib/api";
 import { useAuthOptional } from "@/lib/auth";
 import { getDeviceId } from "@/lib/device";
-import { CITY_CENTER, getCurrentPosition } from "@/lib/geo";
+import {
+  GeoError,
+  getCurrentPosition,
+  isSafariBrowser,
+  queryGeolocationPermission,
+  STACKT_MARKET,
+  STACKT_MARKET_NAME,
+  type Coords,
+  type GeoPermission,
+} from "@/lib/geo";
 import { getTodaysPrompt } from "@/lib/prompts";
 
-type Status = "idle" | "locating" | "uploading" | "done" | "error";
+type Status = "idle" | "locating" | "located" | "uploading" | "done" | "error";
 type CameraPhase = "idle" | "live" | "preview";
 
 export function CheckInForm() {
@@ -22,6 +31,7 @@ export function CheckInForm() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const capturedFileRef = useRef<File | null>(null);
   const capturingRef = useRef(false);
   const captionRef = useRef("");
   const [phase, setPhase] = useState<CameraPhase>("idle");
@@ -32,10 +42,54 @@ export function CheckInForm() {
   const [startingCamera, setStartingCamera] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [spottedAt, setSpottedAt] = useState<string | null>(null);
+  const [geoPermission, setGeoPermission] =
+    useState<GeoPermission>("unknown");
+  const [showHowTo, setShowHowTo] = useState(false);
+  const [locationStatus, setLocationStatus] = useState("");
+  const [pendingRetry, setPendingRetry] = useState(false);
   const prompt = getTodaysPrompt();
+
+  // Only block UI messaging for explicit denial — never for prompt/unknown (Safari).
+  const locationDenied = geoPermission === "denied";
+  const [isSafari] = useState(() => isSafariBrowser());
 
   useEffect(() => {
     getDeviceId();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let permissionStatus: PermissionStatus | null = null;
+    const onChange = () => {
+      if (
+        permissionStatus?.state === "granted" ||
+        permissionStatus?.state === "denied" ||
+        permissionStatus?.state === "prompt"
+      ) {
+        setGeoPermission(permissionStatus.state);
+      }
+    };
+
+    void (async () => {
+      const state = await queryGeolocationPermission();
+      if (!cancelled) setGeoPermission(state);
+
+      try {
+        if (!navigator.permissions?.query) return;
+        permissionStatus = await navigator.permissions.query({
+          name: "geolocation" as PermissionName,
+        });
+        if (cancelled) return;
+        permissionStatus.addEventListener("change", onChange);
+      } catch {
+        // Safari / unsupported — leave as unknown until getCurrentPosition.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      permissionStatus?.removeEventListener("change", onChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -50,7 +104,6 @@ export function CheckInForm() {
     captionRef.current = caption;
   }, [caption]);
 
-  // Cleanup only touches refs so this effect stays dependency-free.
   useEffect(() => {
     return () => {
       const stream = streamRef.current;
@@ -97,6 +150,7 @@ export function CheckInForm() {
       URL.revokeObjectURL(previewUrlRef.current);
       previewUrlRef.current = null;
     }
+    capturedFileRef.current = null;
     setPreview(null);
   }
 
@@ -115,6 +169,8 @@ export function CheckInForm() {
     setStartingCamera(true);
     setStatus("idle");
     setMessage("");
+    setPendingRetry(false);
+    setLocationStatus("");
 
     try {
       stopCamera();
@@ -147,31 +203,96 @@ export function CheckInForm() {
     }
   }
 
-  async function pinCapture(file: File) {
+  async function resolvePosition(): Promise<{
+    position: Coords;
+    locationName: string;
+  }> {
     setStatus("locating");
-    setMessage("Getting your place…");
+    setPendingRetry(false);
+    setLocationStatus("📍 Finding your location…");
+    setMessage("");
 
-    let position = CITY_CENTER;
-    let demo = false;
-    try {
-      position = await getCurrentPosition();
-    } catch {
-      demo = true;
+    const position = await getCurrentPosition({ timeoutMs: 15000 });
+    // Refresh permission state after a successful prompt/grant.
+    void queryGeolocationPermission().then(setGeoPermission);
+
+    const locationName = await reverseGeocodeWithTimeout(
+      position.lat,
+      position.lng,
+    );
+    const label = locationName.trim() || "Location found";
+    setLocationStatus(`📍 ${label}`);
+    setStatus("located");
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 1000);
+    });
+    return { position, locationName };
+  }
+
+  async function pinCapture(
+    file: File,
+    options?: { allowFallback?: boolean },
+  ) {
+    let position: Coords;
+    let locationName = "";
+    let usedFallback = false;
+
+    if (options?.allowFallback) {
+      position = STACKT_MARKET;
+      locationName = STACKT_MARKET_NAME;
+      usedFallback = true;
+      setPendingRetry(false);
+      setLocationStatus("");
+    } else {
+      try {
+        const resolved = await resolvePosition();
+        position = resolved.position;
+        locationName = resolved.locationName;
+      } catch (err) {
+        const geo = err instanceof GeoError ? err : null;
+        if (geo?.code === "denied") {
+          setGeoPermission("denied");
+          setStatus("error");
+          setPendingRetry(true);
+          setLocationStatus("");
+          setMessage(
+            "📍 Location access is needed for a precise pin. Enable it in your browser settings, try again, or post near STACKT market.",
+          );
+          return;
+        }
+        if (geo?.code === "timeout" || geo?.code === "unavailable") {
+          setStatus("error");
+          setPendingRetry(true);
+          setLocationStatus("");
+          setMessage(
+            geo.code === "timeout"
+              ? "Having trouble finding your location… Move to an area with better signal and try again, or post without precise location."
+              : `${geo.message} You can try again or post without precise location.`,
+          );
+          return;
+        }
+        setStatus("error");
+        setPendingRetry(true);
+        setLocationStatus("");
+        setMessage(
+          err instanceof Error
+            ? `${err.message} You can try again or post without precise location.`
+            : "Could not determine your location. Try again, or post without precise location.",
+        );
+        return;
+      }
     }
 
     setStatus("uploading");
+    setLocationStatus("");
     setMessage(
-      demo
-        ? "Dropping your pin with a downtown demo place…"
+      usedFallback
+        ? "Dropping your pin near STACKT market (approximate)…"
         : "Dropping your pin…",
     );
 
     const deviceId = getDeviceId();
-    // Geocode in parallel with upload; 3s race never blocks createCheckIn.
-    const [photoUrl, locationName] = await Promise.all([
-      uploadCheckInPhoto(file, deviceId),
-      reverseGeocodeWithTimeout(position.lat, position.lng),
-    ]);
+    const photoUrl = await uploadCheckInPhoto(file, deviceId);
     await createCheckIn({
       device_id: deviceId,
       prompt,
@@ -185,11 +306,13 @@ export function CheckInForm() {
     setSpottedAt(locationName || null);
     setStatus("done");
     setMessage(
-      demo
-        ? "Pin dropped! (demo place) Taking you to your path…"
+      usedFallback
+        ? "Pin dropped near STACKT market! Taking you to your path…"
         : "Pin dropped! Taking you to your path…",
     );
     setCaption("");
+    capturedFileRef.current = null;
+    setPendingRetry(false);
   }
 
   async function capturePhoto() {
@@ -239,16 +362,16 @@ export function CheckInForm() {
       }
       const url = URL.createObjectURL(asFile);
       previewUrlRef.current = url;
+      capturedFileRef.current = asFile;
       setPreview(url);
       setPhase("preview");
-
-      await pinCapture(asFile);
+      setStatus("idle");
+      setMessage("");
     } catch (err) {
       setStatus("error");
       setMessage(
         err instanceof Error ? err.message : "Could not capture that photo. Try again.",
       );
-      // If we never reached preview, reopen the camera for another try.
       if (!previewUrlRef.current) {
         void startCamera();
       }
@@ -258,8 +381,39 @@ export function CheckInForm() {
     }
   }
 
-  const busy =
-    capturing || status === "locating" || status === "uploading";
+  function retakePhoto() {
+    if (status === "locating" || status === "located" || status === "uploading") {
+      return;
+    }
+    clearPreview();
+    setStatus("idle");
+    setMessage("");
+    setPendingRetry(false);
+    setLocationStatus("");
+    void startCamera();
+  }
+
+  async function postCapture(options?: { allowFallback?: boolean }) {
+    const file = capturedFileRef.current;
+    if (!file) {
+      setStatus("error");
+      setMessage("No photo to post. Retake and try again.");
+      return;
+    }
+    try {
+      await pinCapture(file, options);
+    } catch (err) {
+      setStatus("error");
+      setPendingRetry(true);
+      setMessage(
+        err instanceof Error ? err.message : "Could not post that photo. Try again.",
+      );
+    }
+  }
+
+  const posting =
+    status === "locating" || status === "located" || status === "uploading";
+  const busy = capturing || posting;
 
   return (
     <div className="checkin-page">
@@ -273,12 +427,77 @@ export function CheckInForm() {
         </p>
       </header>
 
+      {locationDenied && (
+        <div className="checkin-geo-banner" role="status">
+          <p>
+            📍 Location access is off. Enable it for a precise pin, or after
+            capturing you can post near STACKT market.
+          </p>
+          <button
+            type="button"
+            className="checkin-geo-howto-toggle"
+            onClick={() => setShowHowTo((v) => !v)}
+            aria-expanded={showHowTo}
+          >
+            How to enable
+          </button>
+          {showHowTo && (
+            <div className="checkin-geo-howto">
+              {isSafari ? (
+                <>
+                  <p>To enable location in Safari:</p>
+                  <p>1. Tap the &apos;AA&apos; or lock icon in the address bar</p>
+                  <p>2. Tap &apos;Website Settings&apos;</p>
+                  <p>3. Set Location to &apos;Allow&apos;</p>
+                  <p>Then refresh the page and try again.</p>
+                </>
+              ) : (
+                <p>
+                  <strong>Chrome:</strong> tap the lock icon → Location → Allow
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div
-        className={`photo-stage${phase === "live" ? " photo-stage-live" : ""}`}
+        className={`photo-stage${
+          phase === "live" || phase === "preview" ? " photo-stage-live" : ""
+        }`}
       >
         {phase === "preview" && preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Capture preview" />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="Capture preview" />
+            {posting ? (
+              <div
+                className="camera-processing"
+                role="status"
+                aria-live="polite"
+              >
+                {status === "uploading" ? "Pinning…" : "Finding place…"}
+              </div>
+            ) : (
+              <div className="camera-chrome">
+                <button
+                  type="button"
+                  className="camera-cancel"
+                  onClick={retakePhoto}
+                >
+                  Retake
+                </button>
+                <span className="camera-chrome-spacer" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="camera-post"
+                  onClick={() => void postCapture()}
+                >
+                  {pendingRetry ? "Try again" : "Post"}
+                </button>
+              </div>
+            )}
+          </>
         ) : phase === "live" ? (
           <>
             <video
@@ -288,17 +507,13 @@ export function CheckInForm() {
               muted
               autoPlay
             />
-            {busy ? (
+            {capturing ? (
               <div
                 className="camera-processing"
                 role="status"
                 aria-live="polite"
               >
-                {status === "locating"
-                  ? "Getting place…"
-                  : status === "uploading"
-                    ? "Pinning…"
-                    : "Processing…"}
+                Processing…
               </div>
             ) : (
               <div className="camera-chrome">
@@ -333,11 +548,24 @@ export function CheckInForm() {
           >
             <CameraIcon />
             <span>
-                {startingCamera ? "Opening camera…" : "Capture a moment now"}
+              {startingCamera ? "Opening camera…" : "Capture a moment now"}
             </span>
           </button>
         )}
       </div>
+
+      {(status === "locating" || status === "located") && locationStatus && (
+        <p
+          className={`checkin-location-status${
+            status === "locating" ? " pulse" : ""
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="checkin-location-dot" aria-hidden="true" />
+          {locationStatus}
+        </p>
+      )}
 
       {status !== "done" && (
         <label className="field checkin-caption">
@@ -354,7 +582,9 @@ export function CheckInForm() {
 
       {status === "done" && (
         <div className="checkin-status" role="status" aria-live="polite">
-          <p className="status">{message || "Pin dropped! Taking you to your path…"}</p>
+          <p className="status">
+            {message || "Pin dropped! Taking you to your path…"}
+          </p>
           {spottedAt ? (
             <p className="checkin-spotted-at">spotted at {spottedAt}</p>
           ) : null}
@@ -367,6 +597,21 @@ export function CheckInForm() {
         >
           {message}
         </p>
+      )}
+
+      {pendingRetry && capturedFileRef.current && (
+        <div className="checkin-geo-actions">
+          <button
+            type="button"
+            className="checkin-geo-fallback"
+            onClick={() => void postCapture({ allowFallback: true })}
+          >
+            Post without precise location
+          </button>
+          <p className="checkin-geo-fallback-hint">
+            Pins near STACKT market (28 Bathurst St) as an approximate place.
+          </p>
+        </div>
       )}
 
       <p className="checkin-footer">
