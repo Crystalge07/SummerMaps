@@ -13,24 +13,36 @@ export const FALLBACK_COORDS: Coords = STACKT_MARKET;
 
 export type GeoPermission = "granted" | "denied" | "prompt" | "unknown";
 
-/** Best-effort permission pre-check (Safari may return unknown). */
+/**
+ * Best-effort permission pre-check.
+ * Safari often lacks Permissions API support or throws — returns "unknown".
+ */
 export async function queryGeolocationPermission(): Promise<GeoPermission> {
   try {
-    if (!navigator.permissions?.query) return "unknown";
-    const result = await navigator.permissions.query({
-      name: "geolocation" as PermissionName,
-    });
-    if (
-      result.state === "granted" ||
-      result.state === "denied" ||
-      result.state === "prompt"
-    ) {
-      return result.state;
+    if (navigator.permissions?.query) {
+      const result = await navigator.permissions.query({
+        name: "geolocation" as PermissionName,
+      });
+      if (
+        result.state === "granted" ||
+        result.state === "denied" ||
+        result.state === "prompt"
+      ) {
+        return result.state;
+      }
+      return "unknown";
     }
     return "unknown";
   } catch {
+    // Safari may throw here
     return "unknown";
   }
+}
+
+/** Safari (incl. iOS) — used for location “How to enable” copy. */
+export function isSafariBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 }
 
 export type GeoErrorCode = "unsupported" | "denied" | "timeout" | "unavailable";
@@ -47,7 +59,8 @@ export class GeoError extends Error {
 export function getCurrentPosition(options?: {
   timeoutMs?: number;
 }): Promise<Coords> {
-  const timeoutMs = options?.timeoutMs ?? 8000;
+  // 15s + high accuracy + no cache — required for reliable iOS Safari GPS
+  const timeoutMs = options?.timeoutMs ?? 15000;
 
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -94,7 +107,7 @@ export function getCurrentPosition(options?: {
       {
         enableHighAccuracy: true,
         timeout: timeoutMs,
-        maximumAge: 10000,
+        maximumAge: 0,
       },
     );
   });
