@@ -1,7 +1,15 @@
 export type Coords = { lat: number; lng: number };
 
-/** Map init / demo seed only — never use as a silent check-in fallback. */
-export const CITY_CENTER: Coords = { lat: 43.6532, lng: -79.3832 };
+/**
+ * STACKT market (28 Bathurst St, Toronto) — explicit check-in escape hatch only.
+ * Never use as a silent GPS fallback.
+ */
+export const STACKT_MARKET: Coords = { lat: 43.6407844, lng: -79.402045 };
+export const STACKT_MARKET_NAME = "STACKT market";
+
+/** Map init / demo seed — same pin as STACKT; never silent check-in fallback. */
+export const CITY_CENTER: Coords = STACKT_MARKET;
+export const FALLBACK_COORDS: Coords = STACKT_MARKET;
 
 export type GeoPermission = "granted" | "denied" | "prompt" | "unknown";
 
