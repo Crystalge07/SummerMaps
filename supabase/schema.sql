@@ -49,6 +49,8 @@ drop policy if exists "friendships_delete" on friendships;
 create policy "friendships_delete" on friendships for delete using (true);
 create policy "checkins_read" on checkins for select using (true);
 create policy "checkins_insert" on checkins for insert with check (true);
+drop policy if exists "checkins_delete" on checkins;
+create policy "checkins_delete" on checkins for delete using (true);
 
 -- Friend requests: add-by-username creates a pending row; accept creates a friendship.
 create table if not exists friend_requests (
