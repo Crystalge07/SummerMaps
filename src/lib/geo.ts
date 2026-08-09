@@ -64,12 +64,7 @@ export function getCurrentPosition(options?: {
 
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(
-        new GeoError(
-          "unsupported",
-          "Geolocation is not supported in this browser.",
-        ),
-      );
+      reject(new GeoError("unsupported", "geolocation_unsupported"));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -79,30 +74,16 @@ export function getCurrentPosition(options?: {
           lng: pos.coords.longitude,
         }),
       (err) => {
+        // Messages stay internal — check-in never surfaces these; it falls back to STACKT.
         if (err.code === err.PERMISSION_DENIED) {
-          reject(
-            new GeoError(
-              "denied",
-              "Location access is needed to drop your pin.",
-            ),
-          );
+          reject(new GeoError("denied", "geolocation_denied"));
           return;
         }
         if (err.code === err.TIMEOUT) {
-          reject(
-            new GeoError(
-              "timeout",
-              "Having trouble finding your location… Move to an area with better signal and try again.",
-            ),
-          );
+          reject(new GeoError("timeout", "geolocation_timeout"));
           return;
         }
-        reject(
-          new GeoError(
-            "unavailable",
-            "Could not determine your location. Try again.",
-          ),
-        );
+        reject(new GeoError("unavailable", "geolocation_unavailable"));
       },
       {
         enableHighAccuracy: true,

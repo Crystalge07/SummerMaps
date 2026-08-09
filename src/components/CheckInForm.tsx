@@ -11,14 +11,10 @@ import {
 import { useAuthOptional } from "@/lib/auth";
 import { getDeviceId } from "@/lib/device";
 import {
-  GeoError,
   getCurrentPosition,
-  isSafariBrowser,
-  queryGeolocationPermission,
   STACKT_MARKET,
   STACKT_MARKET_NAME,
   type Coords,
-  type GeoPermission,
 } from "@/lib/geo";
 import { getTodaysPrompt } from "@/lib/prompts";
 
@@ -43,53 +39,11 @@ export function CheckInForm() {
   const [startingCamera, setStartingCamera] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [spottedAt, setSpottedAt] = useState<string | null>(null);
-  const [geoPermission, setGeoPermission] =
-    useState<GeoPermission>("unknown");
-  const [showHowTo, setShowHowTo] = useState(false);
   const [locationStatus, setLocationStatus] = useState("");
   const prompt = getTodaysPrompt();
 
-  // Only block UI messaging for explicit denial — never for prompt/unknown (Safari).
-  const locationDenied = geoPermission === "denied";
-  const [isSafari] = useState(() => isSafariBrowser());
-
   useEffect(() => {
     getDeviceId();
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    let permissionStatus: PermissionStatus | null = null;
-    const onChange = () => {
-      if (
-        permissionStatus?.state === "granted" ||
-        permissionStatus?.state === "denied" ||
-        permissionStatus?.state === "prompt"
-      ) {
-        setGeoPermission(permissionStatus.state);
-      }
-    };
-
-    void (async () => {
-      const state = await queryGeolocationPermission();
-      if (!cancelled) setGeoPermission(state);
-
-      try {
-        if (!navigator.permissions?.query) return;
-        permissionStatus = await navigator.permissions.query({
-          name: "geolocation" as PermissionName,
-        });
-        if (cancelled) return;
-        permissionStatus.addEventListener("change", onChange);
-      } catch {
-        // Safari / unsupported — leave as unknown until getCurrentPosition.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      permissionStatus?.removeEventListener("change", onChange);
-    };
   }, []);
 
   useEffect(() => {
@@ -211,8 +165,6 @@ export function CheckInForm() {
     setMessage("");
 
     const position = await getCurrentPosition({ timeoutMs: 15000 });
-    // Refresh permission state after a successful prompt/grant.
-    void queryGeolocationPermission().then(setGeoPermission);
 
     const locationName = await reverseGeocodeWithTimeout(
       position.lat,
@@ -236,18 +188,13 @@ export function CheckInForm() {
       const resolved = await resolvePosition();
       position = resolved.position;
       locationName = resolved.locationName;
-    } catch (firstErr) {
-      if (firstErr instanceof GeoError && firstErr.code === "denied") {
-        setGeoPermission("denied");
-      }
+    } catch {
+      // One silent retry, then pin at STACKT — never surface location errors.
       try {
         const resolved = await resolvePosition();
         position = resolved.position;
         locationName = resolved.locationName;
-      } catch (secondErr) {
-        if (secondErr instanceof GeoError && secondErr.code === "denied") {
-          setGeoPermission("denied");
-        }
+      } catch {
         position = STACKT_MARKET;
         locationName = STACKT_MARKET_NAME;
         usedFallback = true;
@@ -395,40 +342,6 @@ export function CheckInForm() {
           Capture the little joys in life, share it with the world
         </p>
       </header>
-
-      {locationDenied && (
-        <div className="checkin-geo-banner" role="status">
-          <p>
-            📍 Location access is off. Enable it in your browser settings for a
-            more accurate pin.
-          </p>
-          <button
-            type="button"
-            className="checkin-geo-howto-toggle"
-            onClick={() => setShowHowTo((v) => !v)}
-            aria-expanded={showHowTo}
-          >
-            How to enable
-          </button>
-          {showHowTo && (
-            <div className="checkin-geo-howto">
-              {isSafari ? (
-                <>
-                  <p>To enable location in Safari:</p>
-                  <p>1. Tap the &apos;AA&apos; or lock icon in the address bar</p>
-                  <p>2. Tap &apos;Website Settings&apos;</p>
-                  <p>3. Set Location to &apos;Allow&apos;</p>
-                  <p>Then refresh the page and try again.</p>
-                </>
-              ) : (
-                <p>
-                  <strong>Chrome:</strong> tap the lock icon → Location → Allow
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       <div
         className={`photo-stage${

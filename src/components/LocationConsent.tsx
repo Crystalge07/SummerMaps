@@ -25,10 +25,10 @@ export function LocationConsent() {
       // ignore
     }
     try {
-      // Warm the browser permission prompt once up front.
+      // Must run from this click so Chrome + Safari show the system prompt.
       await getCurrentPosition();
     } catch {
-      // User may deny; check-in flow will block until location is available.
+      // Denied / unavailable — check-in still posts and falls back to STACKT.
     } finally {
       setBusy(false);
       setOpen(false);
@@ -43,9 +43,9 @@ export function LocationConsent() {
         <p className="panel-kicker">before you begin</p>
         <h2 id="consent-title">Share your place</h2>
         <p>
-          When you capture a find, we pin it where you are so your path and the
-          city map stay true. Your browser will ask for location access next —
-          you can change that anytime in settings.
+          When you capture a find, we pin it where you are. Your browser
+          (Chrome or Safari) will ask for location next — allow it for the
+          best pin. If you skip or deny, you can still post.
         </p>
         <button
           type="button"
