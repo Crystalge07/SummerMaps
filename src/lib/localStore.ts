@@ -2,6 +2,7 @@ import type {
   CheckIn,
   CreateCheckInInput,
   DeviceProfile,
+  FriendRequest,
   Friendship,
 } from "./types";
 import { friendCodeFromDeviceId } from "./friendCode";
@@ -9,6 +10,7 @@ import { friendCodeFromDeviceId } from "./friendCode";
 const CHECKINS_KEY = "pathline_checkins";
 const PROFILES_KEY = "pathline_profiles";
 const FRIENDSHIPS_KEY = "pathline_friendships";
+const FRIEND_REQUESTS_KEY = "pathline_friend_requests";
 
 function read<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -200,6 +202,96 @@ export const localStore = {
 
   async listFriendships(): Promise<Friendship[]> {
     return read<Friendship[]>(FRIENDSHIPS_KEY, []);
+  },
+
+  async getFriendRequestBetween(
+    fromDeviceId: string,
+    toDeviceId: string,
+  ): Promise<FriendRequest | null> {
+    return (
+      read<FriendRequest[]>(FRIEND_REQUESTS_KEY, []).find(
+        (r) =>
+          r.from_device_id === fromDeviceId && r.to_device_id === toDeviceId,
+      ) ?? null
+    );
+  },
+
+  async getIncomingFriendRequests(
+    myDeviceId: string,
+  ): Promise<FriendRequest[]> {
+    return read<FriendRequest[]>(FRIEND_REQUESTS_KEY, [])
+      .filter((r) => r.to_device_id === myDeviceId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  },
+
+  async sendFriendRequest(
+    fromDeviceId: string,
+    toDeviceId: string,
+  ): Promise<FriendRequest> {
+    if (fromDeviceId === toDeviceId) {
+      throw new Error("You can't friend yourself.");
+    }
+    ensureProfile(fromDeviceId);
+    ensureProfile(toDeviceId);
+    const requests = read<FriendRequest[]>(FRIEND_REQUESTS_KEY, []);
+    const existing = requests.find(
+      (r) =>
+        r.from_device_id === fromDeviceId && r.to_device_id === toDeviceId,
+    );
+    if (existing) throw new Error("Request already sent.");
+    const row: FriendRequest = {
+      id: uid(),
+      from_device_id: fromDeviceId,
+      to_device_id: toDeviceId,
+      created_at: new Date().toISOString(),
+    };
+    requests.push(row);
+    write(FRIEND_REQUESTS_KEY, requests);
+    return row;
+  },
+
+  async deleteFriendRequest(requestId: string): Promise<void> {
+    const requests = read<FriendRequest[]>(FRIEND_REQUESTS_KEY, []);
+    write(
+      FRIEND_REQUESTS_KEY,
+      requests.filter((r) => r.id !== requestId),
+    );
+  },
+
+  async acceptFriendRequest(
+    myDeviceId: string,
+    requestId: string,
+  ): Promise<void> {
+    const requests = read<FriendRequest[]>(FRIEND_REQUESTS_KEY, []);
+    const request = requests.find((r) => r.id === requestId);
+    if (!request || request.to_device_id !== myDeviceId) {
+      throw new Error("Friend request not found.");
+    }
+    await this.addFriendship(request.from_device_id, request.to_device_id);
+    const next = requests.filter(
+      (r) =>
+        r.id !== requestId &&
+        !(
+          r.from_device_id === request.to_device_id &&
+          r.to_device_id === request.from_device_id
+        ),
+    );
+    write(FRIEND_REQUESTS_KEY, next);
+  },
+
+  async declineFriendRequest(
+    myDeviceId: string,
+    requestId: string,
+  ): Promise<void> {
+    const requests = read<FriendRequest[]>(FRIEND_REQUESTS_KEY, []);
+    const request = requests.find((r) => r.id === requestId);
+    if (!request || request.to_device_id !== myDeviceId) {
+      throw new Error("Friend request not found.");
+    }
+    write(
+      FRIEND_REQUESTS_KEY,
+      requests.filter((r) => r.id !== requestId),
+    );
   },
 
   async uploadPhoto(file: Blob, filename: string): Promise<string> {

@@ -10,6 +10,7 @@ import type {
   CheckIn,
   CreateCheckInInput,
   DeviceProfile,
+  FriendRequest,
   Friendship,
   PathSeries,
   Profile,
@@ -303,6 +304,35 @@ export async function removeFriend(
   if (error) throw error;
 }
 
+async function createFriendshipBetween(
+  myDeviceId: string,
+  friendDeviceId: string,
+): Promise<Friendship> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return localStore.addFriendship(myDeviceId, friendDeviceId);
+  }
+
+  await ensureDeviceProfile(myDeviceId);
+  await ensureDeviceProfile(friendDeviceId);
+
+  const [a, b] =
+    myDeviceId < friendDeviceId
+      ? [myDeviceId, friendDeviceId]
+      : [friendDeviceId, myDeviceId];
+
+  const { data, error } = await supabase
+    .from("friendships")
+    .upsert(
+      { a_device_id: a, b_device_id: b },
+      { onConflict: "a_device_id,b_device_id" },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Friendship;
+}
+
 export async function addFriend(
   myDeviceId: string,
   friendCode: string,
@@ -318,26 +348,109 @@ export async function addFriend(
     throw new Error("You're already connected.");
   }
 
+  return createFriendshipBetween(myDeviceId, profile.device_id);
+}
+
+async function getPendingRequestBetween(
+  fromDeviceId: string,
+  toDeviceId: string,
+): Promise<FriendRequest | null> {
   const supabase = getSupabase();
-  if (!supabase) return localStore.addFriendship(myDeviceId, profile.device_id);
-
-  await ensureDeviceProfile(myDeviceId);
-
-  const [a, b] =
-    myDeviceId < profile.device_id
-      ? [myDeviceId, profile.device_id]
-      : [profile.device_id, myDeviceId];
+  if (!supabase) {
+    return localStore.getFriendRequestBetween(fromDeviceId, toDeviceId);
+  }
 
   const { data, error } = await supabase
-    .from("friendships")
-    .upsert(
-      { a_device_id: a, b_device_id: b },
-      { onConflict: "a_device_id,b_device_id" },
-    )
-    .select()
-    .single();
+    .from("friend_requests")
+    .select("*")
+    .eq("from_device_id", fromDeviceId)
+    .eq("to_device_id", toDeviceId)
+    .maybeSingle();
   if (error) throw error;
-  return data as Friendship;
+  return (data as FriendRequest) ?? null;
+}
+
+async function deleteFriendRequest(requestId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    await localStore.deleteFriendRequest(requestId);
+    return;
+  }
+  const { error } = await supabase
+    .from("friend_requests")
+    .delete()
+    .eq("id", requestId);
+  if (error) throw error;
+}
+
+export async function getIncomingFriendRequests(
+  myDeviceId: string,
+): Promise<FriendRequest[]> {
+  const supabase = getSupabase();
+  if (!supabase) return localStore.getIncomingFriendRequests(myDeviceId);
+
+  const { data, error } = await supabase
+    .from("friend_requests")
+    .select("*")
+    .eq("to_device_id", myDeviceId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as FriendRequest[];
+}
+
+export async function acceptFriendRequest(
+  myDeviceId: string,
+  requestId: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    await localStore.acceptFriendRequest(myDeviceId, requestId);
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("friend_requests")
+    .select("*")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (error) throw error;
+  const request = data as FriendRequest | null;
+  if (!request || request.to_device_id !== myDeviceId) {
+    throw new Error("Friend request not found.");
+  }
+
+  await createFriendshipBetween(request.from_device_id, request.to_device_id);
+  await deleteFriendRequest(request.id);
+
+  const reverse = await getPendingRequestBetween(
+    request.to_device_id,
+    request.from_device_id,
+  );
+  if (reverse) await deleteFriendRequest(reverse.id);
+}
+
+export async function declineFriendRequest(
+  myDeviceId: string,
+  requestId: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    await localStore.declineFriendRequest(myDeviceId, requestId);
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("friend_requests")
+    .select("*")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (error) throw error;
+  const request = data as FriendRequest | null;
+  if (!request || request.to_device_id !== myDeviceId) {
+    throw new Error("Friend request not found.");
+  }
+
+  await deleteFriendRequest(request.id);
 }
 
 export async function getFriendDeviceIds(deviceId: string): Promise<string[]> {
@@ -493,11 +606,14 @@ export async function getProfileByUsername(
   return (data as Profile) ?? null;
 }
 
-/** Add a friend by their public username (auth-backed profiles). */
-export async function addFriendByUsername(
+/**
+ * Send a friend request by public username.
+ * If they already requested you, accepts that request instead.
+ */
+export async function sendFriendRequestByUsername(
   myUserId: string,
   username: string,
-): Promise<Friendship> {
+): Promise<"sent" | "accepted"> {
   const profile = await getProfileByUsername(username);
   if (!profile) throw new Error("No one found with that username.");
   if (profile.id === myUserId) {
@@ -509,8 +625,37 @@ export async function addFriendByUsername(
     throw new Error("You're already connected.");
   }
 
-  // Friendships still key off device_id columns — synced to auth.uid().
-  const friendDevice = await ensureDeviceProfile(profile.id, profile.username);
-  return addFriend(myUserId, friendDevice.code);
+  // Friendships / requests key off device_id columns — synced to auth.uid().
+  await ensureDeviceProfile(myUserId);
+  await ensureDeviceProfile(profile.id, profile.username);
+
+  const incoming = await getPendingRequestBetween(profile.id, myUserId);
+  if (incoming) {
+    await acceptFriendRequest(myUserId, incoming.id);
+    return "accepted";
+  }
+
+  const outgoing = await getPendingRequestBetween(myUserId, profile.id);
+  if (outgoing) {
+    throw new Error("Request already sent.");
+  }
+
+  const supabase = getSupabase();
+  if (!supabase) {
+    await localStore.sendFriendRequest(myUserId, profile.id);
+    return "sent";
+  }
+
+  const { error } = await supabase.from("friend_requests").insert({
+    from_device_id: myUserId,
+    to_device_id: profile.id,
+  });
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("Request already sent.");
+    }
+    throw error;
+  }
+  return "sent";
 }
 

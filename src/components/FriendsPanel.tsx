@@ -2,17 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  addFriendByUsername,
+  acceptFriendRequest,
+  declineFriendRequest,
   ensureDeviceProfile,
   getFriendDeviceIds,
+  getIncomingFriendRequests,
   getProfileByDeviceId,
   removeFriend,
   searchProfiles,
+  sendFriendRequestByUsername,
 } from "@/lib/api";
 import { useAuthOptional } from "@/lib/auth";
 import { colorForDevice } from "@/lib/colors";
 import { getDeviceId } from "@/lib/device";
-import type { DeviceProfile, Profile } from "@/lib/types";
+import type { DeviceProfile, FriendRequest, Profile } from "@/lib/types";
 import { normalizeUsername } from "@/lib/username";
 import { DemoSeedButton } from "./DemoSeedButton";
 
@@ -23,10 +26,13 @@ function friendLabel(friend: DeviceProfile): string {
   return name ? `@${name}` : "Friend";
 }
 
+type IncomingRequest = FriendRequest & { from: DeviceProfile };
+
 export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   const auth = useAuthOptional();
   const [me, setMe] = useState<DeviceProfile | null>(null);
   const [friends, setFriends] = useState<DeviceProfile[]>([]);
+  const [incoming, setIncoming] = useState<IncomingRequest[]>([]);
   const [query, setQuery] = useState(() =>
     initialCode.length === 6 ? "" : normalizeUsername(initialCode),
   );
@@ -37,6 +43,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   const [copied, setCopied] = useState<"username" | "link" | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [actingRequestId, setActingRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!initialCode || initialCode.length === 6) return;
@@ -49,8 +56,23 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     return `${SHARE_ORIGIN}/friends?add=${encodeURIComponent(username)}`;
   }, [username]);
 
+  function myId() {
+    return auth?.user?.id || getDeviceId();
+  }
+
+  async function hydrateProfile(id: string): Promise<DeviceProfile> {
+    const existing = await getProfileByDeviceId(id);
+    if (existing) return existing;
+    return {
+      device_id: id,
+      code: "",
+      display_name: null,
+      created_at: new Date(0).toISOString(),
+    };
+  }
+
   async function refresh() {
-    const deviceId = auth?.user?.id || getDeviceId();
+    const deviceId = myId();
     if (!deviceId) return;
 
     const profile = await ensureDeviceProfile(
@@ -59,20 +81,20 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     );
     setMe(profile);
 
-    const ids = await getFriendDeviceIds(deviceId);
-    const profiles = await Promise.all(
-      ids.map(async (id) => {
-        const existing = await getProfileByDeviceId(id);
-        if (existing) return existing;
-        return {
-          device_id: id,
-          code: "",
-          display_name: null,
-          created_at: new Date(0).toISOString(),
-        } satisfies DeviceProfile;
-      }),
-    );
+    const [ids, requests] = await Promise.all([
+      getFriendDeviceIds(deviceId),
+      getIncomingFriendRequests(deviceId),
+    ]);
+    const profiles = await Promise.all(ids.map((id) => hydrateProfile(id)));
     setFriends(profiles);
+
+    const incomingRows = await Promise.all(
+      requests.map(async (request) => ({
+        ...request,
+        from: await hydrateProfile(request.from_device_id),
+      })),
+    );
+    setIncoming(incomingRows);
   }
 
   useEffect(() => {
@@ -125,24 +147,42 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     await copyText(shareUrl, "link");
   }
 
-  async function addByUsername(name: string) {
+  async function requestByUsername(name: string) {
+    const deviceId = myId();
+    if (!deviceId) {
+      setError("Sign in to send friend requests.");
+      return;
+    }
     setSuccess("");
     setError("");
     setAdding(true);
     try {
-      await addFriendByUsername(getDeviceId(), name);
-      setSuccess("Friend added! Open the map to see their path.");
+      const result = await sendFriendRequestByUsername(deviceId, name);
+      setSuccess(
+        result === "accepted"
+          ? "You're connected! Open the map to see their path."
+          : "Request sent — they'll see it under Incoming friend requests.",
+      );
       setQuery("");
       setSuggestions([]);
       await refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not add friend.";
+      const msg =
+        err instanceof Error ? err.message : "Could not send request.";
       if (msg.includes("No one found")) {
         setError("That username doesn't match anyone.");
       } else if (msg.includes("already connected")) {
         setError("You're already connected.");
+      } else if (msg.includes("already sent")) {
+        setError("You already sent them a request.");
       } else if (msg.includes("yourself")) {
         setError("That's your own username.");
+      } else if (
+        /friend_requests|schema cache|does not exist|relation/i.test(msg)
+      ) {
+        setError(
+          "Friend requests aren't set up yet — run the latest supabase/schema.sql in the SQL editor.",
+        );
       } else {
         setError(msg);
       }
@@ -151,20 +191,55 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
     }
   }
 
-  async function onAddByUsername(e: React.FormEvent) {
+  async function onRequestByUsername(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = normalizeUsername(query);
     if (!trimmed) return;
-    await addByUsername(trimmed);
+    await requestByUsername(trimmed);
+  }
+
+  async function onAcceptRequest(request: IncomingRequest) {
+    const deviceId = myId();
+    if (!deviceId) return;
+    setActingRequestId(request.id);
+    setError("");
+    try {
+      await acceptFriendRequest(deviceId, request.id);
+      setSuccess(`You're now friends with ${friendLabel(request.from)}.`);
+      await refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not accept request.",
+      );
+    } finally {
+      setActingRequestId(null);
+    }
+  }
+
+  async function onDeclineRequest(request: IncomingRequest) {
+    const deviceId = myId();
+    if (!deviceId) return;
+    setActingRequestId(request.id);
+    setError("");
+    try {
+      await declineFriendRequest(deviceId, request.id);
+      setIncoming((prev) => prev.filter((r) => r.id !== request.id));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not decline request.",
+      );
+    } finally {
+      setActingRequestId(null);
+    }
   }
 
   async function onConfirmRemove(friend: DeviceProfile) {
-    const myId = auth?.user?.id || getDeviceId();
-    if (!myId) return;
+    const deviceId = myId();
+    if (!deviceId) return;
     setRemovingId(friend.device_id);
     setError("");
     try {
-      await removeFriend(myId, friend.device_id);
+      await removeFriend(deviceId, friend.device_id);
       setFriends((prev) => prev.filter((f) => f.device_id !== friend.device_id));
       setConfirmRemoveId(null);
     } catch (err) {
@@ -227,7 +302,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
         <h2>Add a friend</h2>
         <form
           className="friends-add-form"
-          onSubmit={(e) => void onAddByUsername(e)}
+          onSubmit={(e) => void onRequestByUsername(e)}
         >
           <input
             value={query}
@@ -250,7 +325,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
             className="btn primary friends-add-btn"
             disabled={!query.trim() || adding}
           >
-            {adding ? "Adding..." : "Add"}
+            {adding ? "Sending…" : "Send request"}
           </button>
         </form>
         {suggestions.length > 0 && (
@@ -259,7 +334,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
               <li key={s.id}>
                 <button
                   type="button"
-                  onClick={() => void addByUsername(s.username)}
+                  onClick={() => void requestByUsername(s.username)}
                   disabled={adding}
                 >
                   @{s.username}
@@ -270,6 +345,54 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
         )}
         {success && <p className="status">{success}</p>}
         {error && <p className="status error">{error}</p>}
+      </section>
+
+      <section className="profile-block">
+        <h2>
+          Incoming friend requests{" "}
+          <span className="friends-count">{incoming.length}</span>
+        </h2>
+        {incoming.length === 0 ? (
+          <p className="meta">No pending requests.</p>
+        ) : (
+          <ul className="friends-request-list">
+            {incoming.map((request) => {
+              const label = friendLabel(request.from);
+              const busy = actingRequestId === request.id;
+              return (
+                <li key={request.id} className="friends-request-row">
+                  <span
+                    className="friends-color-dot"
+                    style={{
+                      background: colorForDevice(request.from_device_id),
+                    }}
+                  />
+                  <span className="friends-contact-name">{label}</span>
+                  <div className="friends-request-actions">
+                    <button
+                      type="button"
+                      className="friends-request-accept"
+                      aria-label={`Accept ${label}`}
+                      disabled={busy}
+                      onClick={() => void onAcceptRequest(request)}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      className="friends-request-decline"
+                      aria-label={`Decline ${label}`}
+                      disabled={busy}
+                      onClick={() => void onDeclineRequest(request)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       <section className="profile-block">

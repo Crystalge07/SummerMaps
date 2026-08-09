@@ -2,8 +2,9 @@
 
 create extension if not exists "pgcrypto";
 
+-- device_id is text so it matches auth.uid()::text and existing DBs.
 create table if not exists device_profiles (
-  device_id uuid primary key,
+  device_id text primary key,
   code text unique not null,
   display_name text,
   created_at timestamptz not null default now()
@@ -11,8 +12,8 @@ create table if not exists device_profiles (
 
 create table if not exists friendships (
   id uuid primary key default gen_random_uuid(),
-  a_device_id uuid not null references device_profiles(device_id) on delete cascade,
-  b_device_id uuid not null references device_profiles(device_id) on delete cascade,
+  a_device_id text not null references device_profiles(device_id) on delete cascade,
+  b_device_id text not null references device_profiles(device_id) on delete cascade,
   created_at timestamptz not null default now(),
   unique (a_device_id, b_device_id),
   check (a_device_id < b_device_id)
@@ -20,7 +21,7 @@ create table if not exists friendships (
 
 create table if not exists checkins (
   id uuid primary key default gen_random_uuid(),
-  device_id uuid not null,
+  device_id text not null,
   prompt text,
   lat double precision not null,
   lng double precision not null,
@@ -44,8 +45,32 @@ create policy "profiles_upsert" on device_profiles for insert with check (true);
 create policy "profiles_update" on device_profiles for update using (true);
 create policy "friendships_read" on friendships for select using (true);
 create policy "friendships_insert" on friendships for insert with check (true);
+drop policy if exists "friendships_delete" on friendships;
+create policy "friendships_delete" on friendships for delete using (true);
 create policy "checkins_read" on checkins for select using (true);
 create policy "checkins_insert" on checkins for insert with check (true);
+
+-- Friend requests: add-by-username creates a pending row; accept creates a friendship.
+create table if not exists friend_requests (
+  id uuid primary key default gen_random_uuid(),
+  from_device_id text not null references device_profiles(device_id) on delete cascade,
+  to_device_id text not null references device_profiles(device_id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (from_device_id, to_device_id),
+  check (from_device_id <> to_device_id)
+);
+
+create index if not exists friend_requests_to_idx on friend_requests (to_device_id);
+create index if not exists friend_requests_from_idx on friend_requests (from_device_id);
+
+alter table friend_requests enable row level security;
+
+drop policy if exists "friend_requests_read" on friend_requests;
+create policy "friend_requests_read" on friend_requests for select using (true);
+drop policy if exists "friend_requests_insert" on friend_requests;
+create policy "friend_requests_insert" on friend_requests for insert with check (true);
+drop policy if exists "friend_requests_delete" on friend_requests;
+create policy "friend_requests_delete" on friend_requests for delete using (true);
 
 insert into storage.buckets (id, name, public)
 values ('checkins', 'checkins', true)

@@ -921,12 +921,67 @@ input.underline-input:focus {
   margin: 0;
 }
 
+.friends-request-list,
 .friends-contact-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 0.6rem;
+}
+
+.friends-request-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  min-height: 3rem;
+}
+
+.friends-request-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.friends-request-accept,
+.friends-request-decline {
+  flex: 0 0 auto;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper) 92%, white);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.friends-request-accept {
+  color: var(--sage-deep);
+}
+
+.friends-request-accept:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sage) 35%, white);
+  border-color: var(--sage-deep);
+}
+
+.friends-request-decline {
+  color: var(--ink-soft);
+}
+
+.friends-request-decline:hover:not(:disabled) {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-error) 45%, var(--line));
+}
+
+.friends-request-accept:disabled,
+.friends-request-decline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .friends-contact-row {
@@ -1262,11 +1317,23 @@ input.underline-input:focus {
   height: 100%;
 }
 
-.map-city-header {
+.map-top-chrome {
   position: absolute;
   top: 0.75rem;
   left: 0.75rem;
+  right: 0.75rem;
   z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  pointer-events: none;
+}
+
+.map-top-chrome > * {
+  pointer-events: auto;
+}
+
+.map-city-header {
   margin: 0;
   padding: 0.5rem 0.85rem;
   border-radius: 14px;
@@ -1290,29 +1357,25 @@ input.underline-input:focus {
 }
 
 .map-paths-panel {
-  position: absolute;
-  right: 3rem;
-  bottom: 0.65rem;
-  z-index: 5;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   align-items: stretch;
   gap: 0.45rem;
   max-width: min(12.5rem, calc(100% - 4rem));
+  flex: 0 0 auto;
 }
 
 .map-paths-toggle {
-  align-self: flex-end;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--paper) 94%, white);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 92%, white);
   color: var(--ink);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  padding: 0.5rem 0.95rem;
+  font-family: var(--font-display), "Playfair Display", serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 0.5rem 0.85rem;
   cursor: pointer;
-  box-shadow: var(--card-shadow-lg);
+  box-shadow: var(--card-shadow);
 }
 
 .map-paths-panel.open .map-paths-toggle {
@@ -1396,7 +1459,7 @@ input.underline-input:focus {
 
 .map-status-chip {
   position: absolute;
-  top: 0.75rem;
+  top: 4.25rem;
   left: 0.75rem;
   z-index: 5;
   margin: 0;

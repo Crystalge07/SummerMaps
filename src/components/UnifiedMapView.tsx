@@ -236,90 +236,80 @@ export function UnifiedMapView() {
 
   return (
     <div className="unified-map">
-      {!pathsOn && (
-        <p className="map-city-header">
-          <strong>City finds</strong>
-          <span>what everyone spotted today</span>
-        </p>
-      )}
-
-      <aside
-        className={
-          panelOpen ? "map-paths-panel open" : "map-paths-panel"
-        }
-      >
-        <button
-          type="button"
-          className="map-paths-toggle"
-          aria-expanded={panelOpen}
-          onClick={() => setPanelOpen((open) => !open)}
-        >
-          Paths
-        </button>
-
-        {panelOpen && (
-          <div className="map-paths-body" role="group" aria-label="Path layers">
-            <label className="map-paths-option">
-              <input
-                type="checkbox"
-                checked={pathToggles.mine}
-                onChange={() => togglePath("mine")}
-              />
-              <span>My path</span>
-            </label>
-            <label className="map-paths-option">
-              <input
-                type="checkbox"
-                checked={pathToggles.friends}
-                onChange={() => togglePath("friends")}
-              />
-              <span>Friends&apos; paths</span>
-            </label>
-
-            <div className="map-paths-divider" />
-
-            <p className="map-paths-label">City view</p>
-            <div className="map-paths-view" role="group" aria-label="City view">
-              <button
-                type="button"
-                className={viewMode === "lines" ? "toggle active" : "toggle"}
-                onClick={() => setViewMode("lines")}
-              >
-                Pins
-              </button>
-              <button
-                type="button"
-                className={viewMode === "heatmap" ? "toggle active" : "toggle"}
-                disabled={pathsOn}
-                title={
-                  pathsOn
-                    ? "Heatmap is available when path overlays are off"
-                    : undefined
-                }
-                onClick={() => setViewMode("heatmap")}
-              >
-                Heat
-              </button>
-            </div>
-          </div>
+      <div className="map-top-chrome">
+        {!pathsOn && (
+          <p className="map-city-header">
+            <strong>City finds</strong>
+            <span>what everyone spotted today</span>
+          </p>
         )}
-      </aside>
 
-      {loading && (
-        <p
-          className="map-status-chip"
-          style={!pathsOn ? { top: "4.25rem" } : undefined}
+        <aside
+          className={
+            panelOpen ? "map-paths-panel open" : "map-paths-panel"
+          }
         >
-          Loading…
-        </p>
-      )}
+          <button
+            type="button"
+            className="map-paths-toggle"
+            aria-expanded={panelOpen}
+            onClick={() => setPanelOpen((open) => !open)}
+          >
+            Paths
+          </button>
+
+          {panelOpen && (
+            <div className="map-paths-body" role="group" aria-label="Path layers">
+              <label className="map-paths-option">
+                <input
+                  type="checkbox"
+                  checked={pathToggles.mine}
+                  onChange={() => togglePath("mine")}
+                />
+                <span>My path</span>
+              </label>
+              <label className="map-paths-option">
+                <input
+                  type="checkbox"
+                  checked={pathToggles.friends}
+                  onChange={() => togglePath("friends")}
+                />
+                <span>Friends&apos; paths</span>
+              </label>
+
+              <div className="map-paths-divider" />
+
+              <p className="map-paths-label">City view</p>
+              <div className="map-paths-view" role="group" aria-label="City view">
+                <button
+                  type="button"
+                  className={viewMode === "lines" ? "toggle active" : "toggle"}
+                  onClick={() => setViewMode("lines")}
+                >
+                  Pins
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === "heatmap" ? "toggle active" : "toggle"}
+                  disabled={pathsOn}
+                  title={
+                    pathsOn
+                      ? "Heatmap is available when path overlays are off"
+                      : undefined
+                  }
+                  onClick={() => setViewMode("heatmap")}
+                >
+                  Heat
+                </button>
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
+
+      {loading && <p className="map-status-chip">Loading…</p>}
       {error && !loading && (
-        <p
-          className="map-status-chip error"
-          style={!pathsOn ? { top: "4.25rem" } : undefined}
-        >
-          {error}
-        </p>
+        <p className="map-status-chip error">{error}</p>
       )}
 
       <PathMap
