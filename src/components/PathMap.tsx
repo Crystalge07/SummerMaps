@@ -22,16 +22,30 @@ import "mapbox-gl/dist/mapbox-gl.css";
 export type MapViewMode = "lines" | "heatmap";
 export type MapFocus = "all" | "checkins" | "paths" | "crossings";
 
+/** Chronological replay visual state from UnifiedMapView. */
+export type PathReplayVisual = {
+  active: boolean;
+  visiblePinIds: ReadonlySet<string>;
+  lineDeviceIds: ReadonlySet<string>;
+  drawing: {
+    deviceId: string;
+    coordinates: [number, number][];
+    color: string;
+  } | null;
+  expandingPinId: string | null;
+};
+
 type Props = {
   paths: PathSeries[];
   crossings?: PathCrossing[];
-  replayProgress?: number; // 0–1
+  /** Legacy 0–1 path slice (PersonalPathView / FriendsMapView). */
+  replayProgress?: number;
+  replayVisual?: PathReplayVisual | null;
   anonymizePhotos?: boolean;
   onSelectCheckIn?: (checkIn: CheckIn) => void;
   viewMode?: MapViewMode;
   focus?: MapFocus;
   initialCenter?: { lat: number; lng: number };
-  /** When set, own pins open a popup with delete (My Path only). */
   ownDeviceId?: string;
   onDeleteCheckIn?: (checkIn: CheckIn) => Promise<void>;
 };
@@ -48,6 +62,7 @@ export function PathMap({
   paths,
   crossings = [],
   replayProgress = 1,
+  replayVisual = null,
   anonymizePhotos = false,
   onSelectCheckIn,
   viewMode = "lines",
@@ -74,25 +89,43 @@ export function PathMap({
     }
   }, [paths, popup]);
 
-  // Positions are derived from the full path so replay slicing doesn't reshuffle fans.
   const displayCoords = useMemo(
     () => displayCoordsByCheckInId(paths),
     [paths],
   );
 
-  const visiblePaths = useMemo(
-    () =>
-      paths.map((p) => ({
-        ...p,
-        checkins: slicePath(
-          [...p.checkins].sort((a, b) =>
-            a.created_at.localeCompare(b.created_at),
-          ),
-          replayProgress,
+  const chronologicalMode = Boolean(replayVisual?.active);
+
+  const visiblePaths = useMemo(() => {
+    if (chronologicalMode && replayVisual) {
+      return paths.map((p) => {
+        if (p.connect === false) {
+          return {
+            ...p,
+            checkins: p.checkins.filter((c) =>
+              replayVisual.visiblePinIds.has(c.id),
+            ),
+          };
+        }
+        const sorted = [...p.checkins].sort((a, b) =>
+          a.created_at.localeCompare(b.created_at),
+        );
+        return {
+          ...p,
+          checkins: sorted.filter((c) => replayVisual.visiblePinIds.has(c.id)),
+        };
+      });
+    }
+    return paths.map((p) => ({
+      ...p,
+      checkins: slicePath(
+        [...p.checkins].sort((a, b) =>
+          a.created_at.localeCompare(b.created_at),
         ),
-      })),
-    [paths, replayProgress],
-  );
+        replayProgress,
+      ),
+    }));
+  }, [paths, replayProgress, chronologicalMode, replayVisual]);
 
   const allPoints = visiblePaths.flatMap((p) => p.checkins);
   const center = initialCenter
@@ -123,7 +156,6 @@ export function PathMap({
   const showCrossings =
     focus === "crossings" || (focus === "all" && crossings.length > 0);
 
-  // Prefer path overlays over city pins when the same check-in appears in both.
   const uniqueMarkers = useMemo(() => {
     const seen = new Set<string>();
     const items: {
@@ -140,6 +172,14 @@ export function PathMap({
     for (const path of ordered) {
       for (const checkIn of path.checkins) {
         if (seen.has(checkIn.id)) continue;
+        if (
+          chronologicalMode &&
+          replayVisual &&
+          path.connect !== false &&
+          !replayVisual.visiblePinIds.has(checkIn.id)
+        ) {
+          continue;
+        }
         seen.add(checkIn.id);
         const pos = displayCoords.get(checkIn.id) ?? {
           lat: checkIn.lat,
@@ -155,11 +195,45 @@ export function PathMap({
       }
     }
     return items;
-  }, [visiblePaths, displayCoords]);
+  }, [visiblePaths, displayCoords, chronologicalMode, replayVisual]);
+
   const lineOpacity = focus === "crossings" ? 0.25 : 0.9;
 
-  const canDeletePopup =
-    Boolean(popup && ownDeviceId && popup.device_id === ownDeviceId && onDeleteCheckIn);
+  const pathLines = useMemo(() => {
+    if (!showLines) return [];
+    return visiblePaths
+      .filter((path) => path.connect !== false)
+      .filter((path) => {
+        if (!chronologicalMode || !replayVisual) return true;
+        return replayVisual.lineDeviceIds.has(path.deviceId);
+      })
+      .map((path) => {
+        const sorted = [...path.checkins].sort((a, b) =>
+          a.created_at.localeCompare(b.created_at),
+        );
+        if (sorted.length < 2) return null;
+        const stops = sorted.map((c) => {
+          const pos = displayCoords.get(c.id) ?? { lat: c.lat, lng: c.lng };
+          return [pos.lng, pos.lat] as [number, number];
+        });
+        return {
+          deviceId: path.deviceId,
+          color: path.color,
+          coordinates: curvedLineThrough(stops),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+  }, [
+    showLines,
+    visiblePaths,
+    chronologicalMode,
+    replayVisual,
+    displayCoords,
+  ]);
+
+  const canDeletePopup = Boolean(
+    popup && ownDeviceId && popup.device_id === ownDeviceId && onDeleteCheckIn,
+  );
 
   async function confirmPopupDelete() {
     if (!popup || !onDeleteCheckIn) return;
@@ -186,6 +260,8 @@ export function PathMap({
       </div>
     );
   }
+
+  const drawing = replayVisual?.drawing ?? null;
 
   return (
     <div className="map-shell">
@@ -274,50 +350,75 @@ export function PathMap({
           </Source>
         )}
 
-        {showLines &&
-          visiblePaths.map((path) => {
-            if (path.connect === false) return null;
-            if (path.checkins.length < 2) return null;
-            const stops = path.checkins.map((c) => {
-              const pos = displayCoords.get(c.id) ?? { lat: c.lat, lng: c.lng };
-              return [pos.lng, pos.lat] as [number, number];
-            });
-            const geojson = {
-              type: "Feature" as const,
+        {pathLines.map((line) => {
+          const geojson = {
+            type: "Feature" as const,
+            properties: {},
+            geometry: {
+              type: "LineString" as const,
+              coordinates: line.coordinates,
+            },
+          };
+          return (
+            <Source
+              key={`line-${line.deviceId}`}
+              id={`line-${line.deviceId}`}
+              type="geojson"
+              data={geojson}
+            >
+              <Layer
+                id={`line-layer-${line.deviceId}`}
+                type="line"
+                paint={{
+                  "line-color": line.color,
+                  "line-width": 4,
+                  "line-opacity": lineOpacity,
+                }}
+                layout={{
+                  "line-cap": "round",
+                  "line-join": "round",
+                }}
+              />
+            </Source>
+          );
+        })}
+
+        {drawing && drawing.coordinates.length >= 2 && (
+          <Source
+            id="replay-drawing-segment"
+            type="geojson"
+            data={{
+              type: "Feature",
               properties: {},
               geometry: {
-                type: "LineString" as const,
-                coordinates: curvedLineThrough(stops),
+                type: "LineString",
+                coordinates: drawing.coordinates,
               },
-            };
-            return (
-              <Source
-                key={path.deviceId}
-                id={`line-${path.deviceId}`}
-                type="geojson"
-                data={geojson}
-              >
-                <Layer
-                  id={`line-layer-${path.deviceId}`}
-                  type="line"
-                  paint={{
-                    "line-color": path.color,
-                    "line-width": 4,
-                    "line-opacity": lineOpacity,
-                  }}
-                  layout={{
-                    "line-cap": "round",
-                    "line-join": "round",
-                  }}
-                />
-              </Source>
-            );
-          })}
+            }}
+          >
+            <Layer
+              id="replay-drawing-segment-layer"
+              type="line"
+              paint={{
+                "line-color": drawing.color,
+                "line-width": 4,
+                "line-opacity": lineOpacity,
+              }}
+              layout={{
+                "line-cap": "round",
+                "line-join": "round",
+              }}
+            />
+          </Source>
+        )}
 
         {showMarkers &&
           uniqueMarkers.map(({ checkIn: c, color, lat, lng, isCityPin }) => {
             const isOwn = Boolean(ownDeviceId && c.device_id === ownDeviceId);
             const size = isCityPin ? 32 : isOwn ? 48 : 40;
+            const entering =
+              chronologicalMode &&
+              replayVisual?.expandingPinId === c.id;
             return (
               <Marker
                 key={c.id}
@@ -341,7 +442,7 @@ export function PathMap({
               >
                 <button
                   type="button"
-                  className="map-pin"
+                  className={`map-pin${entering ? " pin-entering" : ""}`}
                   style={{ width: size, height: size }}
                   title={format(new Date(c.created_at), "h:mm a")}
                   aria-label={

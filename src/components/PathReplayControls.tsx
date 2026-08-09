@@ -2,12 +2,90 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Props = {
+type ControlledProps = {
   enabled: boolean;
-  onProgress: (progress: number) => void;
+  /** 0–100 */
+  progress: number;
+  isReplaying: boolean;
+  onReplay: () => void;
+  /** Live scrub — jump state without waiting for release. */
+  onScrub: (progress: number) => void;
+  /** After scrub release — resume animation from scrub point. */
+  onScrubEnd?: (progress: number) => void;
+  onProgress?: never;
 };
 
-export function PathReplayControls({ enabled, onProgress }: Props) {
+type LegacyProps = {
+  enabled: boolean;
+  onProgress: (progress: number) => void;
+  progress?: never;
+  isReplaying?: never;
+  onReplay?: never;
+  onScrub?: never;
+};
+
+type Props = ControlledProps | LegacyProps;
+
+function isControlled(props: Props): props is ControlledProps {
+  return typeof (props as ControlledProps).onReplay === "function";
+}
+
+/** Chronological replay controls (controlled) or legacy progress scrubber. */
+export function PathReplayControls(props: Props) {
+  if (isControlled(props)) {
+    return <ControlledReplay {...props} />;
+  }
+  return <LegacyReplay enabled={props.enabled} onProgress={props.onProgress} />;
+}
+
+function ControlledReplay({
+  enabled,
+  progress,
+  isReplaying,
+  onReplay,
+  onScrub,
+  onScrubEnd,
+}: ControlledProps) {
+  if (!enabled) return null;
+
+  return (
+    <div className="replay-bar">
+      <button
+        type="button"
+        className="btn primary"
+        disabled={isReplaying}
+        onClick={() => onReplay()}
+      >
+        {isReplaying ? "Playing…" : "Replay"}
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={Math.round(progress)}
+        aria-label="Replay progress"
+        onChange={(e) => onScrub(Number(e.target.value))}
+        onPointerUp={(e) =>
+          onScrubEnd?.(Number((e.target as HTMLInputElement).value))
+        }
+        onKeyUp={(e) =>
+          onScrubEnd?.(Number((e.target as HTMLInputElement).value))
+        }
+      />
+      <span>{Math.round(progress)}%</span>
+    </div>
+  );
+}
+
+/** Older slice-based play loop for PersonalPathView / FriendsMapView. */
+function LegacyReplay({
+  enabled,
+  onProgress,
+}: {
+  enabled: boolean;
+  onProgress: (progress: number) => void;
+}) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(1);
   const raf = useRef<number | null>(null);
@@ -56,7 +134,7 @@ export function PathReplayControls({ enabled, onProgress }: Props) {
           setPlaying((p) => !p);
         }}
       >
-        {playing ? "Pause" : progress >= 1 ? "Replay my day" : "Play"}
+        {playing ? "Pause" : progress >= 1 ? "Replay" : "Play"}
       </button>
       <input
         type="range"
