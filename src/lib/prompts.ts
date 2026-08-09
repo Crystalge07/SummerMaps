@@ -206,6 +206,44 @@ export function promptForCheckIn(createdAt: string | Date): string {
   return getPromptForDayKey(dayKey(new Date(createdAt)));
 }
 
+/**
+ * Display timestamp for a capture.
+ * Finds taken after 10pm ET (carryover into the next mosaic day) are shown as
+ * that mosaic day between 1:00 AM and 10:00 AM ET, mapped in real order
+ * (earlier late-night find → earlier morning display time).
+ */
+export function displayCreatedAt(createdAt: string | Date): Date {
+  const date = new Date(createdAt);
+  const mosaic = dayKey(date);
+  const cal = zonedParts(date);
+  const calendarKey = formatDayKey(cal.year, cal.month, cal.day);
+  if (calendarKey === mosaic) return date;
+
+  const [y, m, d] = mosaic.split("-").map(Number);
+  const prev = addCalendarDays(y, m, d, -1);
+  // Real carryover window: previous day 10pm ET → mosaic-day midnight ET.
+  const carryStart = zonedWallTimeToUtc(
+    prev.year,
+    prev.month,
+    prev.day,
+    MOSAIC_CUTOFF_HOUR,
+  );
+  const carryEnd = zonedWallTimeToUtc(y, m, d, 0);
+  // Display window: mosaic day 1:00 AM → 10:00 AM ET.
+  const displayStart = zonedWallTimeToUtc(y, m, d, 1);
+  const displayEnd = zonedWallTimeToUtc(y, m, d, 10);
+
+  const span = carryEnd.getTime() - carryStart.getTime();
+  if (span <= 0) return displayStart;
+  const t = Math.min(
+    1,
+    Math.max(0, (date.getTime() - carryStart.getTime()) / span),
+  );
+  return new Date(
+    displayStart.getTime() + t * (displayEnd.getTime() - displayStart.getTime()),
+  );
+}
+
 export function getPromptMeta(date = new Date()) {
   return {
     prompt: getTodaysPrompt(date),

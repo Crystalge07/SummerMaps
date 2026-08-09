@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { promptForCheckIn } from "@/lib/prompts";
+import { displayCreatedAt, promptForCheckIn } from "@/lib/prompts";
 import type { CheckIn } from "@/lib/types";
 
 export function CheckInDetail({
@@ -11,7 +11,7 @@ export function CheckInDetail({
 }) {
   if (!checkIn) return null;
 
-  const when = format(new Date(checkIn.created_at), "MMM d · h:mm a");
+  const when = format(displayCreatedAt(checkIn.created_at), "MMM d · h:mm a");
   const place = checkIn.location_name?.trim() || "";
   const prompt = promptForCheckIn(checkIn.created_at);
 

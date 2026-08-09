@@ -1665,6 +1665,17 @@ input.underline-input:focus {
   color: var(--color-error);
 }
 
+.map-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .map-detail-float {
   position: absolute;
   top: 50%;
@@ -1672,7 +1683,7 @@ input.underline-input:focus {
   right: auto;
   bottom: auto;
   transform: translate(-50%, -50%);
-  z-index: 6;
+  z-index: 7;
   width: min(22rem, calc(100% - 1.5rem));
   max-width: 22rem;
   max-height: min(85%, calc(var(--view-h) - 2rem));
