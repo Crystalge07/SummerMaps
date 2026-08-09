@@ -14,21 +14,18 @@ type Mode = "sign_in" | "sign_up";
 type Availability = "idle" | "checking" | "available" | "taken" | "invalid";
 
 /**
- * Account gate + Profile account panel.
- * AppChrome shows this alone until the user is signed in with a username.
+ * Profile account panel — sign-in / username claim only.
+ * Signed-in identity lives in ProfileView so the page scrolls as one unit.
  */
 export function AuthGate() {
   const {
     status,
     error: authError,
-    user,
-    profile,
     needsAuth,
     needsUsername,
     retry,
     signIn,
     signUp,
-    signOut,
     claimUsername,
   } = useAuth();
 
@@ -303,41 +300,6 @@ export function AuthGate() {
     );
   }
 
-  // Signed in with username
-  const initial = profile?.username?.[0]?.toUpperCase() ?? "?";
-  return (
-    <section className="profile-identity" aria-labelledby="account-title">
-      <h2 id="account-title" className="sr-only">
-        Account
-      </h2>
-      <div className="profile-avatar" aria-hidden="true">
-        {initial}
-      </div>
-      {profile?.username && (
-        <p className="profile-username">@{profile.username}</p>
-      )}
-      <p className="meta profile-identity-meta">
-        {profile?.username ? (
-          user?.email ? (
-            `synced · ${user.email}`
-          ) : (
-            "synced across devices"
-          )
-        ) : (
-          "Your session is active on this device."
-        )}
-      </p>
-      <button
-        type="button"
-        className="profile-signout"
-        disabled={busy}
-        onClick={() => {
-          setBusy(true);
-          void signOut().finally(() => setBusy(false));
-        }}
-      >
-        {busy ? "Signing out…" : "Sign out"}
-      </button>
-    </section>
-  );
+  // Signed in with username — identity / sign-out live in ProfileView.
+  return null;
 }

@@ -3059,6 +3059,8 @@ input.underline-input:focus {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  overflow: visible;
+  position: static;
 }
 
 .profile-page-header {
@@ -3067,17 +3069,19 @@ input.underline-input:focus {
   color: var(--sage-deep);
   text-align: center;
   flex: 0 0 auto;
+  position: static;
 }
 
 .profile-identity {
-  width: min(440px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   text-align: center;
-  padding: 0.65rem 1.25rem 0.85rem;
+  padding: 0.35rem 0 0.55rem;
   display: grid;
-  gap: 0.2rem;
+  gap: 0.15rem;
   justify-items: center;
   box-sizing: border-box;
+  position: static;
 }
 
 .profile-identity-meta {
@@ -3095,7 +3099,7 @@ input.underline-input:focus {
   font-family: var(--font-display), "Playfair Display", serif;
   font-size: 1.85rem;
   font-weight: 600;
-  margin: 0 0 0.45rem;
+  margin: 0 0 0.35rem;
 }
 
 .profile-username {
@@ -3703,10 +3707,11 @@ input.underline-input:focus {
   display: grid;
   gap: 0;
   align-content: start;
-  padding: 0 1.25rem 1.75rem;
-  flex: 1 1 auto;
+  padding: 0 1.25rem 0;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
+  position: static;
 }
 
 .profile-header {
@@ -3735,7 +3740,10 @@ input.underline-input:focus {
 
 .profile-member-since {
   text-align: center;
-  margin: 0 0 0.35rem;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.3;
 }
 
 .profile-block {
@@ -3842,16 +3850,18 @@ input.underline-input:focus {
 
 .profile-signout-link {
   justify-self: center;
-  margin-top: 0.35rem;
+  display: block;
+  width: 100%;
+  margin: 0.75rem 0 0;
   border: 0;
   background: transparent;
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 0.9rem;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  font-size: 0.85rem;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
-  padding: 0.35rem 0.5rem;
+  padding: 0.75rem 0.5rem 2rem;
 }
 
 .profile-signout-link:disabled {

@@ -6,12 +6,11 @@ import { useEffect, useMemo, useState } from "react";
 import { ensureDeviceProfile, getAllCheckins, getTodayCityCheckins } from "@/lib/api";
 import { useAuthOptional } from "@/lib/auth";
 import { getDeviceId } from "@/lib/device";
-import type { DeviceProfile } from "@/lib/types";
 import { MemoriesPanel } from "./MemoriesPanel";
 
 const SHARE_ORIGIN = "https://summer-maps.vercel.app";
 
-/** Activity, share, and friends — account chrome lives in AuthGate above. */
+/** Profile body: identity, share, activity, friends, mosaic, settings. */
 export function ProfileView() {
   const auth = useAuthOptional();
   const username = auth?.profile?.username;
@@ -20,7 +19,6 @@ export function ProfileView() {
   const memberSince = auth?.profile?.created_at;
   const signedIn = Boolean(auth?.user && auth?.profile);
 
-  const [me, setMe] = useState<DeviceProfile | null>(null);
   const [capturesToday, setCapturesToday] = useState(0);
   const [capturesAll, setCapturesAll] = useState(0);
   const [copied, setCopied] = useState<"username" | "link" | "email" | null>(
@@ -34,9 +32,11 @@ export function ProfileView() {
     return `${SHARE_ORIGIN}/friends?add=${encodeURIComponent(username)}`;
   }, [username]);
 
+  const avatarInitial = username?.[0]?.toUpperCase() ?? "?";
+
   useEffect(() => {
     const deviceId = getDeviceId();
-    void ensureDeviceProfile(deviceId, username).then(setMe);
+    void ensureDeviceProfile(deviceId, username);
 
     void Promise.all([getTodayCityCheckins(), getAllCheckins()]).then(
       ([today, all]) => {
@@ -89,7 +89,23 @@ export function ProfileView() {
 
   return (
     <div className="profile-page">
-      {!signedIn && (
+      {signedIn ? (
+        <header className="profile-identity">
+          <div className="profile-avatar" aria-hidden="true">
+            {avatarInitial}
+          </div>
+          {username ? (
+            <p className="profile-username">@{username}</p>
+          ) : (
+            <h1 className="profile-username">Your profile</h1>
+          )}
+          {memberSince ? (
+            <p className="profile-member-since">
+              Member since {format(new Date(memberSince), "MMM d, yyyy")}
+            </p>
+          ) : null}
+        </header>
+      ) : (
         <header className="profile-identity">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -103,72 +119,6 @@ export function ProfileView() {
           </div>
         </header>
       )}
-
-      {signedIn && memberSince && (
-        <p className="meta profile-member-since">
-          Member since {format(new Date(memberSince), "MMM d, yyyy")}
-        </p>
-      )}
-
-      {hasEmail && (
-        <section className="profile-block">
-          <button
-            type="button"
-            className="profile-settings-toggle"
-            aria-expanded={settingsOpen}
-            onClick={() => setSettingsOpen((o) => !o)}
-          >
-            <span>Settings</span>
-            <span aria-hidden="true">{settingsOpen ? "−" : "+"}</span>
-          </button>
-          {settingsOpen && (
-            <div className="profile-settings-body">
-              <div className="profile-row">
-                <div>
-                  <span className="profile-row-label">Email</span>
-                  <strong className="profile-row-value">{email}</strong>
-                </div>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => void copyText(email, "email")}
-                >
-                  {copied === "email" ? "Copied" : "Copy"}
-                </button>
-              </div>
-              {signedIn && (
-                <button
-                  type="button"
-                  className="btn ghost profile-signout-btn"
-                  disabled={signingOut}
-                  onClick={() => void onSignOut()}
-                >
-                  {signingOut ? "Signing out…" : "Sign out"}
-                </button>
-              )}
-            </div>
-          )}
-        </section>
-      )}
-
-      <section className="profile-block">
-        <h2>Your activity</h2>
-        <div className="profile-activity-stats">
-          <div>
-            <strong>{capturesToday}</strong>
-            <span>captures today</span>
-          </div>
-          <div>
-            <strong>{capturesAll}</strong>
-            <span>all-time captures</span>
-          </div>
-        </div>
-        <Link className="btn primary" href="/map?layer=mine">
-          Open my path
-        </Link>
-      </section>
-
-      <MemoriesPanel />
 
       <section className="profile-block profile-share-block">
         <h2>Share</h2>
@@ -204,16 +154,64 @@ export function ProfileView() {
       </section>
 
       <section className="profile-block">
+        <h2>Your activity</h2>
+        <div className="profile-activity-stats">
+          <div>
+            <strong>{capturesToday}</strong>
+            <span>captures today</span>
+          </div>
+          <div>
+            <strong>{capturesAll}</strong>
+            <span>all-time captures</span>
+          </div>
+        </div>
+        <Link className="btn primary" href="/map?layer=mine">
+          Open my path
+        </Link>
+      </section>
+
+      <section className="profile-block">
         <h2>Friends</h2>
-        <p className="meta">
-          Add people, share your handle, and see their paths on the map.
-        </p>
+        <p className="meta">Add friends to see each other&apos;s paths.</p>
         <Link className="btn primary" href="/friends">
           Open friends
         </Link>
       </section>
 
-      {signedIn && !hasEmail && (
+      <MemoriesPanel />
+
+      {hasEmail && (
+        <section className="profile-block">
+          <button
+            type="button"
+            className="profile-settings-toggle"
+            aria-expanded={settingsOpen}
+            onClick={() => setSettingsOpen((o) => !o)}
+          >
+            <span>Settings</span>
+            <span aria-hidden="true">{settingsOpen ? "−" : "+"}</span>
+          </button>
+          {settingsOpen && (
+            <div className="profile-settings-body">
+              <div className="profile-row">
+                <div>
+                  <span className="profile-row-label">Email</span>
+                  <strong className="profile-row-value">{email}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => void copyText(email, "email")}
+                >
+                  {copied === "email" ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {signedIn && (
         <button
           type="button"
           className="profile-signout-link"
