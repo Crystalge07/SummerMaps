@@ -13,9 +13,11 @@ import {
 } from "recharts";
 import {
   getAllCheckins,
+  getFriendDeviceIds,
   getProfileByDeviceId,
   getTodayCityCheckins,
 } from "@/lib/api";
+import { getDeviceId } from "@/lib/device";
 import { captureMomentNearLabel } from "@/lib/landmarks";
 import { displayCreatedAt } from "@/lib/prompts";
 import {
@@ -50,6 +52,20 @@ function usernameFor(
   );
 }
 
+/** Friends + yourself see @username; strangers stay anonymous. */
+function actorLabel(
+  deviceId: string,
+  usernames: Record<string, string>,
+  friendIds: Set<string>,
+  myDeviceId: string | null,
+): string {
+  const isMe = Boolean(myDeviceId && deviceId === myDeviceId);
+  if (isMe || friendIds.has(deviceId)) {
+    return `@${usernameFor(deviceId, usernames)}`;
+  }
+  return "A user";
+}
+
 /** Place name only — never the "Someone captured…" sentence. */
 function placeForCheckIn(c: CheckIn): string | null {
   const stored = c.location_name?.trim();
@@ -65,12 +81,33 @@ function placeForCheckIn(c: CheckIn): string | null {
 function liveFeedLine(
   c: CheckIn,
   usernames: Record<string, string>,
+  friendIds: Set<string>,
+  myDeviceId: string | null,
 ): string {
   const time = format(displayCreatedAt(c.created_at), "h:mm a");
-  const user = usernameFor(c.device_id, usernames);
+  const actor = actorLabel(c.device_id, usernames, friendIds, myDeviceId);
   const place = placeForCheckIn(c);
-  if (place) return `${time} · @${user} · near ${place}`;
-  return `${time} · @${user}`;
+  if (place) return `${time} · ${actor} · near ${place}`;
+  return `${time} · ${actor}`;
+}
+
+function FeedPolaroid({
+  photoUrl,
+  rotate = 2,
+}: {
+  photoUrl: string;
+  rotate?: number;
+}) {
+  return (
+    <span
+      className="live-feed-polaroid"
+      style={{ ["--feed-rot" as string]: `${rotate}deg` }}
+      aria-hidden="true"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={photoUrl} alt="" />
+    </span>
+  );
 }
 
 export function InsightsView() {
@@ -80,6 +117,8 @@ export function InsightsView() {
   const profileCache = useRef<Map<string, string>>(new Map());
   const [usernames, setUsernames] = useState<Record<string, string>>({});
   const [showAll, setShowAll] = useState(false);
+  const [myDeviceId, setMyDeviceId] = useState<string | null>(null);
+  const [friendIds, setFriendIds] = useState<Set<string>>(() => new Set());
 
   async function resolveUsername(deviceId: string): Promise<string> {
     if (profileCache.current.has(deviceId)) {
@@ -92,6 +131,23 @@ export function InsightsView() {
     profileCache.current.set(deviceId, name);
     return name;
   }
+
+  useEffect(() => {
+    const me = getDeviceId();
+    setMyDeviceId(me || null);
+    if (!me) return;
+    let cancelled = false;
+    void getFriendDeviceIds(me)
+      .then((ids) => {
+        if (!cancelled) setFriendIds(new Set(ids));
+      })
+      .catch(() => {
+        if (!cancelled) setFriendIds(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,13 +176,24 @@ export function InsightsView() {
   }, []);
 
   useEffect(() => {
-    all.forEach(async (c) => {
-      if (!usernames[c.device_id]) {
-        const name = await resolveUsername(c.device_id);
-        setUsernames((prev) => ({ ...prev, [c.device_id]: name }));
-      }
+    // Only resolve usernames for people we can show (@me / @friends).
+    const visibleIds = new Set<string>();
+    if (myDeviceId) visibleIds.add(myDeviceId);
+    for (const id of friendIds) visibleIds.add(id);
+
+    const missing = [
+      ...new Set(
+        all.map((c) => c.device_id).filter((id) => visibleIds.has(id)),
+      ),
+    ].filter((id) => !profileCache.current.has(id));
+
+    missing.forEach(async (deviceId) => {
+      const name = await resolveUsername(deviceId);
+      setUsernames((prev) =>
+        prev[deviceId] ? prev : { ...prev, [deviceId]: name },
+      );
     });
-  }, [all]);
+  }, [all, friendIds, myDeviceId]);
 
   const live = useMemo(() => activeSince(all, LIVE_WINDOW_MS), [all]);
   const byHour = useMemo(() => hourlyDistribution(today), [today]);
@@ -190,15 +257,21 @@ export function InsightsView() {
             {recent.length === 0 && (
               <li className="meta">No captures yet — add one from Home.</li>
             )}
-            {recent.map((c) => (
+            {recent.map((c, i) => (
               <li key={c.id}>
                 <Link
                   href={`/map?layer=city&view=lines&lat=${c.lat}&lng=${c.lng}`}
-                  className="live-feed-row live-feed-row-inline"
+                  className="live-feed-row"
                 >
                   <span className="live-feed-body">
-                    {liveFeedLine(c, usernames)}
+                    {liveFeedLine(c, usernames, friendIds, myDeviceId)}
                   </span>
+                  {c.photo_url?.trim() ? (
+                    <FeedPolaroid
+                      photoUrl={c.photo_url}
+                      rotate={i % 2 === 0 ? 2.5 : -2}
+                    />
+                  ) : null}
                 </Link>
               </li>
             ))}
@@ -229,9 +302,17 @@ export function InsightsView() {
                 <ul className="captures-list">
                   {[...all]
                     .sort((a, b) => b.created_at.localeCompare(a.created_at))
-                    .map((c) => (
+                    .map((c, i) => (
                       <li key={c.id} className="captures-row">
-                        {liveFeedLine(c, usernames)}
+                        <span className="captures-row-copy">
+                          {liveFeedLine(c, usernames, friendIds, myDeviceId)}
+                        </span>
+                        {c.photo_url?.trim() ? (
+                          <FeedPolaroid
+                            photoUrl={c.photo_url}
+                            rotate={i % 2 === 0 ? 2 : -2.5}
+                          />
+                        ) : null}
                       </li>
                     ))}
                 </ul>
