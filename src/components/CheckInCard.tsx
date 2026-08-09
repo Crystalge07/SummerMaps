@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { useState } from "react";
 import { deleteCheckIn } from "@/lib/api";
+import { displayCreatedAt } from "@/lib/prompts";
 import type { CheckIn } from "@/lib/types";
 
 type Props = {
@@ -45,7 +46,9 @@ export function CheckInCard({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={checkIn.photo_url} alt="" className="checkin-card-photo" />
       <div className="checkin-card-body">
-        <strong>{format(new Date(checkIn.created_at), "h:mm a")}</strong>
+        <strong>
+          {format(displayCreatedAt(checkIn.created_at), "h:mm a")}
+        </strong>
         {checkIn.location_name?.trim() ? (
           <p className="checkin-location">{checkIn.location_name.trim()}</p>
         ) : null}

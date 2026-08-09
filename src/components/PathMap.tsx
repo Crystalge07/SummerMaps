@@ -15,6 +15,7 @@ import {
   curvedLineThrough,
   displayCoordsByCheckInId,
 } from "@/lib/pathGeometry";
+import { displayCreatedAt } from "@/lib/prompts";
 import type { CheckIn, PathSeries } from "@/lib/types";
 import { PhotoPin } from "./PhotoPin";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -42,7 +43,7 @@ type Props = {
   replayProgress?: number;
   replayVisual?: PathReplayVisual | null;
   anonymizePhotos?: boolean;
-  onSelectCheckIn?: (checkIn: CheckIn) => void;
+  onSelectCheckIn?: (checkIn: CheckIn | null) => void;
   viewMode?: MapViewMode;
   focus?: MapFocus;
   initialCenter?: { lat: number; lng: number };
@@ -325,8 +326,10 @@ export function PathMap({
         style={{ width: "100%", height: "100%" }}
         onClick={() => {
           setPopup(null);
+          setCrossingPopup(null);
           setConfirmDelete(false);
           setDeleteError("");
+          onSelectCheckIn?.(null);
         }}
       >
         <NavigationControl position="top-right" />
@@ -493,11 +496,11 @@ export function PathMap({
                   type="button"
                   className={`map-pin${entering ? " pin-entering" : ""}`}
                   style={{ width: size, height: size }}
-                  title={format(new Date(c.created_at), "h:mm a")}
+                  title={format(displayCreatedAt(c.created_at), "h:mm a")}
                   aria-label={
                     anonymizePhotos
-                      ? `Capture at ${format(new Date(c.created_at), "h:mm a")}`
-                      : `Open capture from ${format(new Date(c.created_at), "h:mm a")}`
+                      ? `Capture at ${format(displayCreatedAt(c.created_at), "h:mm a")}`
+                      : `Open capture from ${format(displayCreatedAt(c.created_at), "h:mm a")}`
                   }
                 >
                   <PhotoPin
@@ -575,7 +578,9 @@ export function PathMap({
             <div className="checkin-popup-inner">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={popup.photo_url} alt="" />
-              <strong>{format(new Date(popup.created_at), "h:mm a")}</strong>
+              <strong>
+                {format(displayCreatedAt(popup.created_at), "h:mm a")}
+              </strong>
               {popup.location_name?.trim() ? (
                 <p className="checkin-location">{popup.location_name.trim()}</p>
               ) : null}

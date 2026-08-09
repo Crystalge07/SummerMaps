@@ -678,26 +678,37 @@ export function UnifiedMapView() {
       )}
 
       {selected && (
-        <div className="map-detail-float">
+        <>
           <button
             type="button"
-            className="map-detail-close"
-            aria-label="Close"
+            className="map-detail-backdrop"
+            aria-label="Close photo"
             onClick={() => setSelected(null)}
-          >
-            ×
-          </button>
-          <CheckInDetail
-            checkIn={selected}
-            anonymize={
-              !visiblePaths.some(
-                (p) =>
-                  p.connect !== false &&
-                  p.checkins.some((c) => c.id === selected.id),
-              )
-            }
           />
-        </div>
+          <div
+            className="map-detail-float"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="map-detail-close"
+              aria-label="Close"
+              onClick={() => setSelected(null)}
+            >
+              ×
+            </button>
+            <CheckInDetail
+              checkIn={selected}
+              anonymize={
+                !visiblePaths.some(
+                  (p) =>
+                    p.connect !== false &&
+                    p.checkins.some((c) => c.id === selected.id),
+                )
+              }
+            />
+          </div>
+        </>
       )}
     </div>
   );

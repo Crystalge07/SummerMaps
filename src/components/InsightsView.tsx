@@ -17,6 +17,7 @@ import {
   getTodayCityCheckins,
 } from "@/lib/api";
 import { captureMomentNearLabel } from "@/lib/landmarks";
+import { displayCreatedAt } from "@/lib/prompts";
 import {
   activeSince,
   dailyCounts,
@@ -162,8 +163,11 @@ export function InsightsView() {
                   href={`/map?layer=city&view=lines&lat=${c.lat}&lng=${c.lng}`}
                   className="live-feed-row"
                 >
-                  <time className="live-feed-time" dateTime={c.created_at}>
-                    {format(new Date(c.created_at), "h:mm a")}
+                  <time
+                    className="live-feed-time"
+                    dateTime={displayCreatedAt(c.created_at).toISOString()}
+                  >
+                    {format(displayCreatedAt(c.created_at), "h:mm a")}
                   </time>
                   <span className="live-feed-body">
                     @
@@ -204,7 +208,7 @@ export function InsightsView() {
                     .map((c) => (
                       <li key={c.id} className="captures-row">
                         <time>
-                          {format(new Date(c.created_at), "h:mm a")}
+                          {format(displayCreatedAt(c.created_at), "h:mm a")}
                         </time>
                         <span>
                           @
