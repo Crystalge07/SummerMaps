@@ -3,7 +3,7 @@
 > *Capture the little joys in life. Share them with the world.*
 
 **Live:** https://summer-maps.vercel.app  
-**Built at:** SummerHacks 2026 — 24 hours, 138 commits
+**Built at:** SummerHacks 2026 
 
 ---
 
