@@ -71,8 +71,7 @@ export function lastRowSpans(itemCount: number, cols: number): number[] {
 
 /**
  * Group all city finds into shared mosaic days (everyone, not per-user).
- * Today is included while live (before cutoff) and after lock.
- * Only photos before the day's cutoff hour are eligible.
+ * Every photo from that calendar day is included — no cutoff filter.
  */
 export function buildMosaicDays(
   checkins: CheckIn[],
@@ -82,6 +81,7 @@ export function buildMosaicDays(
   const today = dayKey(now);
 
   for (const c of checkins) {
+    if (!c.photo_url?.trim()) continue;
     const key = dayKey(new Date(c.created_at));
     if (key > today) continue;
     const list = byDay.get(key) ?? [];
@@ -91,14 +91,14 @@ export function buildMosaicDays(
 
   const days: MosaicDay[] = [];
   for (const [key, rows] of byDay) {
-    const eligible = rows
-      .filter((c) => isEligibleForDayMosaic(c, key))
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-    if (eligible.length === 0) continue;
+    const photos = [...rows].sort((a, b) =>
+      a.created_at.localeCompare(b.created_at),
+    );
+    if (photos.length === 0) continue;
     days.push({
       dayKey: key,
       prompt: getTodaysPrompt(parseDayKey(key)),
-      checkins: eligible,
+      checkins: photos,
       locked: isMosaicLocked(key, now),
     });
   }
