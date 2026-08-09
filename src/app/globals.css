@@ -3950,25 +3950,39 @@ input.underline-input:focus {
   justify-self: start;
 }
 
-.profile-signout-link {
-  justify-self: center;
-  display: block;
-  width: 100%;
-  margin: 0.75rem 0 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 0.85rem;
+.profile-signout-footer {
   text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-  padding: 0.75rem 0.5rem 2rem;
+  padding: 2rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.profile-signout-link:disabled {
+.signout-link {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-family: inherit;
+}
+
+.signout-link:hover {
+  color: var(--color-text);
+}
+
+.signout-link:disabled {
   opacity: 0.5;
   cursor: wait;
+}
+
+.signout-caption {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  margin: 0;
 }
 
 .profile-activity-stats {
