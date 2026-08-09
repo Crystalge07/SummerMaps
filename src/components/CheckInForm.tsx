@@ -13,6 +13,7 @@ import { getDeviceId } from "@/lib/device";
 import {
   GeoError,
   getCurrentPosition,
+  isSafariBrowser,
   queryGeolocationPermission,
   STACKT_MARKET,
   STACKT_MARKET_NAME,
@@ -48,7 +49,9 @@ export function CheckInForm() {
   const [pendingRetry, setPendingRetry] = useState(false);
   const prompt = getTodaysPrompt();
 
+  // Only block UI messaging for explicit denial — never for prompt/unknown (Safari).
   const locationDenied = geoPermission === "denied";
+  const [isSafari] = useState(() => isSafariBrowser());
 
   useEffect(() => {
     getDeviceId();
@@ -209,7 +212,7 @@ export function CheckInForm() {
     setLocationStatus("📍 Finding your location…");
     setMessage("");
 
-    const position = await getCurrentPosition({ timeoutMs: 8000 });
+    const position = await getCurrentPosition({ timeoutMs: 15000 });
     // Refresh permission state after a successful prompt/grant.
     void queryGeolocationPermission().then(setGeoPermission);
 
@@ -440,13 +443,19 @@ export function CheckInForm() {
           </button>
           {showHowTo && (
             <div className="checkin-geo-howto">
-              <p>
-                <strong>iOS Safari:</strong> Settings → Safari → Location →
-                Allow
-              </p>
-              <p>
-                <strong>Chrome:</strong> tap the lock icon → Location → Allow
-              </p>
+              {isSafari ? (
+                <>
+                  <p>To enable location in Safari:</p>
+                  <p>1. Tap the &apos;AA&apos; or lock icon in the address bar</p>
+                  <p>2. Tap &apos;Website Settings&apos;</p>
+                  <p>3. Set Location to &apos;Allow&apos;</p>
+                  <p>Then refresh the page and try again.</p>
+                </>
+              ) : (
+                <p>
+                  <strong>Chrome:</strong> tap the lock icon → Location → Allow
+                </p>
+              )}
             </div>
           )}
         </div>
