@@ -499,20 +499,43 @@ export function UnifiedMapView() {
             <span>what everyone spotted today</span>
           </p>
         )}
+      </div>
 
+      {loading && <p className="map-status-chip">Loading…</p>}
+      {error && !loading && (
+        <p className="map-status-chip error">{error}</p>
+      )}
+
+      <PathMap
+        paths={visiblePaths}
+        anonymizePhotos={false}
+        onSelectCheckIn={setSelected}
+        viewMode={pathsOn ? "lines" : viewMode}
+        focus={pathsOn ? "all" : "checkins"}
+        initialCenter={initialCenter}
+        ownDeviceId={myDeviceId}
+        replayVisual={showReplay ? replayVisual : null}
+        onDeleteCheckIn={
+          myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
+        }
+      />
+
+      {legendPaths.length > 0 && (
+        <ul className="map-legend-pills">
+          {legendPaths.map((p) => (
+            <li key={p.deviceId} className="map-legend-pill">
+              <span className="swatch" style={{ background: p.color }} />
+              {p.label.split(" · ")[0].split(" ")[0]}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="map-bottom-chrome">
         <aside
           ref={panelRef}
           className={panelOpen ? "map-paths-panel open" : "map-paths-panel"}
         >
-          <button
-            type="button"
-            className="map-paths-toggle"
-            aria-expanded={panelOpen}
-            onClick={() => setPanelOpen((open) => !open)}
-          >
-            Paths
-          </button>
-
           {panelOpen && (
             <div className="map-paths-body" role="group" aria-label="Path layers">
               <label className="map-paths-option">
@@ -559,51 +582,30 @@ export function UnifiedMapView() {
               </div>
             </div>
           )}
+
+          <button
+            type="button"
+            className="map-paths-toggle"
+            aria-expanded={panelOpen}
+            onClick={() => setPanelOpen((open) => !open)}
+          >
+            Paths
+          </button>
         </aside>
+
+        {showReplay && (
+          <div className="map-replay-dock">
+            <PathReplayControls
+              enabled
+              progress={replayProgress}
+              isReplaying={isReplaying}
+              onReplay={onReplay}
+              onScrub={onScrub}
+              onScrubEnd={onScrubEnd}
+            />
+          </div>
+        )}
       </div>
-
-      {loading && <p className="map-status-chip">Loading…</p>}
-      {error && !loading && (
-        <p className="map-status-chip error">{error}</p>
-      )}
-
-      <PathMap
-        paths={visiblePaths}
-        anonymizePhotos={false}
-        onSelectCheckIn={setSelected}
-        viewMode={pathsOn ? "lines" : viewMode}
-        focus={pathsOn ? "all" : "checkins"}
-        initialCenter={initialCenter}
-        ownDeviceId={myDeviceId}
-        replayVisual={showReplay ? replayVisual : null}
-        onDeleteCheckIn={
-          myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
-        }
-      />
-
-      {legendPaths.length > 0 && (
-        <ul className="map-legend-pills">
-          {legendPaths.map((p) => (
-            <li key={p.deviceId} className="map-legend-pill">
-              <span className="swatch" style={{ background: p.color }} />
-              {p.label.split(" · ")[0].split(" ")[0]}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {showReplay && (
-        <div className="map-replay-dock">
-          <PathReplayControls
-            enabled
-            progress={replayProgress}
-            isReplaying={isReplaying}
-            onReplay={onReplay}
-            onScrub={onScrub}
-            onScrubEnd={onScrubEnd}
-          />
-        </div>
-      )}
 
       {showEmptyState && (
         <div className="map-empty-card">

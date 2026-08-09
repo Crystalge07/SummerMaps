@@ -348,9 +348,7 @@ export function DashboardView() {
               <>
                 <p className="busiest-count">
                   <strong>{busiest.count}</strong> finds near{" "}
-                  <span>
-                    {busiest.lat.toFixed(2)}, {busiest.lng.toFixed(2)}
-                  </span>
+                  <span>{busiest.label}</span>
                 </p>
                 <Link
                   className="btn primary"
@@ -408,33 +406,15 @@ export function DashboardView() {
         </section>
 
         <section className="chart-panel">
-          <h2>Densest coordinate cells</h2>
+          <h2>Densest areas</h2>
           <ul className="dense-list">
             {densest.length === 0 && <li>No finds yet today.</li>}
             {densest.map((d) => (
               <li key={d.key}>
-                <span>{d.key}</span>
+                <span>Near {d.label}</span>
                 <strong>{d.count}</strong>
               </li>
             ))}
-          </ul>
-        </section>
-
-        <section className="chart-panel">
-          <h2>Latest city finds</h2>
-          <ul className="dense-list">
-            {today
-              .slice()
-              .reverse()
-              .slice(0, 8)
-              .map((c) => (
-                <li key={c.id}>
-                  <span>{format(new Date(c.created_at), "h:mm a")}</span>
-                  <strong>
-                    {c.lat.toFixed(3)}, {c.lng.toFixed(3)}
-                  </strong>
-                </li>
-              ))}
           </ul>
         </section>
       </div>

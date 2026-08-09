@@ -1,3 +1,4 @@
+import { areaLabel } from "./landmarks";
 import type { CheckIn } from "./types";
 
 /** Hourly distribution for today — always returns 24 buckets (0–23). */
@@ -18,6 +19,8 @@ export type DensityCell = {
   lat: number;
   lng: number;
   count: number;
+  /** Human place name (landmark / neighbourhood), never raw coords. */
+  label: string;
 };
 
 /** Cluster check-ins on rounded lat/lng cells (≈1km at mid latitudes). */
@@ -29,9 +32,36 @@ export function densestCells(checkins: CheckIn[], limit = 5): DensityCell[] {
     const key = `${lat},${lng}`;
     const existing = cells.get(key);
     if (existing) existing.count += 1;
-    else cells.set(key, { key, lat, lng, count: 1 });
+    else {
+      cells.set(key, {
+        key,
+        lat,
+        lng,
+        count: 1,
+        label: areaLabel(lat, lng, c.location_name),
+      });
+    }
   }
-  return Array.from(cells.values())
+
+  // Merge cells that resolve to the same known area so the list reads like
+  // "Queen West" instead of several near-identical coordinate buckets.
+  const byLabel = new Map<string, DensityCell>();
+  for (const cell of cells.values()) {
+    const labelKey = cell.label.toLowerCase();
+    const existing = byLabel.get(labelKey);
+    if (!existing) {
+      byLabel.set(labelKey, { ...cell });
+      continue;
+    }
+    existing.count += cell.count;
+    if (cell.count > existing.count - cell.count) {
+      existing.lat = cell.lat;
+      existing.lng = cell.lng;
+      existing.key = cell.key;
+    }
+  }
+
+  return Array.from(byLabel.values())
     .sort((a, b) => b.count - a.count)
     .slice(0, limit);
 }

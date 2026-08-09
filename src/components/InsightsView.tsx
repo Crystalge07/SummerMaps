@@ -283,15 +283,13 @@ export function InsightsView() {
           </div>
           <ul className="dense-list">
             {densest.length === 0 && <li>No clusters yet today.</li>}
-            {densest.map((d, i) => (
+            {densest.map((d) => (
               <li key={d.key}>
                 <Link
                   href={`/map?layer=city&filter=checkins&view=heatmap&lat=${d.lat}&lng=${d.lng}`}
                   className="dense-link"
                 >
-                  <span>
-                    Area {i + 1} · {d.lat.toFixed(2)}, {d.lng.toFixed(2)}
-                  </span>
+                  <span>Near {d.label}</span>
                   <strong>{d.count} captures</strong>
                 </Link>
               </li>
