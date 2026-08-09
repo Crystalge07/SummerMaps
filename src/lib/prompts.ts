@@ -201,6 +201,11 @@ export function getTodaysPrompt(date = new Date()): string {
   return getPromptForDayKey(dayKey(date));
 }
 
+/** Theme for a capture's mosaic day (ignores stale stored prompt snapshots). */
+export function promptForCheckIn(createdAt: string | Date): string {
+  return getPromptForDayKey(dayKey(new Date(createdAt)));
+}
+
 export function getPromptMeta(date = new Date()) {
   return {
     prompt: getTodaysPrompt(date),
