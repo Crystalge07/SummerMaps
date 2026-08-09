@@ -119,7 +119,7 @@ export function MemoriesPanel() {
       <section className="profile-block memories-block">
         <h2>Mosaic</h2>
         <p className="meta">
-          Everyone&apos;s photos from the day — the full collage, all of them.
+          Tap the mosaic to see the little joys your community found today.
         </p>
 
         {!locked ? (

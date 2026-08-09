@@ -1667,15 +1667,19 @@ input.underline-input:focus {
 
 .map-detail-float {
   position: absolute;
-  left: 0.75rem;
+  top: 50%;
+  left: 50%;
   right: auto;
-  bottom: 0.75rem;
+  bottom: auto;
+  transform: translate(-50%, -50%);
   z-index: 6;
   width: min(22rem, calc(100% - 1.5rem));
   max-width: 22rem;
+  max-height: min(85%, calc(var(--view-h) - 2rem));
+  overflow: auto;
   margin: 0;
   padding: 0.85rem;
-  border-radius: 22px;
+  border-radius: 16px;
   background: var(--paper);
   border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
   box-shadow: 0 8px 24px rgba(44, 62, 45, 0.1);

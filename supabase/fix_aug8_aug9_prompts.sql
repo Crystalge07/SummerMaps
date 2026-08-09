@@ -1,6 +1,6 @@
 -- Retag check-in prompts around the Aug 8 → Aug 9 10pm ET day boundary.
--- Mosaic membership is derived from created_at in app code; this only fixes
--- the stored prompt snapshot for display / consistency.
+-- UI already derives the theme from created_at; this fixes stored snapshots
+-- (e.g. "old stickers", "hidden beauty") for consistency.
 --
 -- Run in the Supabase SQL editor.
 --
@@ -14,7 +14,8 @@ set prompt = 'warmth'
 where created_at >= '2026-08-08 02:00:00+00'
   and created_at <  '2026-08-09 02:00:00+00';
 
--- Hidden beauties: everything in the Aug 9 mosaic window so far
+-- Hidden beauties: everything in the Aug 9 mosaic window
+-- (includes late Aug 8 after 10pm ET that still say old stickers / hidden beauty)
 update checkins
 set prompt = 'hidden beauties'
 where created_at >= '2026-08-09 02:00:00+00'
