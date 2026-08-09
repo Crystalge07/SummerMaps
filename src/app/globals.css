@@ -1084,17 +1084,35 @@ input.underline-input:focus {
   cursor: not-allowed;
 }
 
+.friends-contact-block {
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  padding-bottom: 0.55rem;
+}
+
 .friends-contact-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 0;
+  padding: 0.75rem 0 0.2rem;
   border-radius: 0;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-bottom: 0;
   box-shadow: none;
   min-height: 3rem;
+}
+
+.friends-crossing-summary {
+  margin: 0 0 0 1.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--sage) 75%, var(--ink-soft));
+}
+
+.friends-crossing-summary-hot {
+  color: var(--sage-deep);
+  font-weight: 700;
 }
 
 .friends-contact-main {
@@ -2218,16 +2236,80 @@ input.underline-input:focus {
 }
 
 .crossing-dot {
+  display: block;
   width: 12px;
   height: 12px;
+  padding: 0;
+  margin: 0;
   border-radius: 50%;
-  background: var(--butter);
-  border: 1px solid var(--ink);
+  background: var(--color-accent, #e8c547);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  animation: crossing-dot-pulse 2s ease-in-out infinite;
 }
 
 .crossing-dot-focus {
   width: 16px;
   height: 16px;
+}
+
+@keyframes crossing-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.crossing-popup .mapboxgl-popup-content {
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  background: var(--color-bg-card, var(--paper));
+  box-shadow: var(--card-shadow-lg);
+}
+
+.crossing-popup-text {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--ink);
+  max-width: 14rem;
+}
+
+.map-stranger-crossing-banner {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  width: min(22rem, calc(100% - 1.5rem));
+  padding: 0.65rem 0.85rem;
+  border-radius: 14px;
+  background: var(--color-bg-card, var(--paper));
+  border: 1px solid var(--sage, var(--color-green-secondary));
+  box-shadow: var(--card-shadow);
+  display: grid;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.map-stranger-crossing-banner p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.map-stranger-crossing-banner a {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--sage-deep);
+  text-decoration: none;
 }
 
 .replay-bar {
