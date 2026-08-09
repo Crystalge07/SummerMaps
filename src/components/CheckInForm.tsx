@@ -33,6 +33,7 @@ export function CheckInForm() {
   const previewUrlRef = useRef<string | null>(null);
   const capturedFileRef = useRef<File | null>(null);
   const capturingRef = useRef(false);
+  const postingRef = useRef(false);
   const captionRef = useRef("");
   const [phase, setPhase] = useState<CameraPhase>("idle");
   const [preview, setPreview] = useState<string | null>(null);
@@ -274,7 +275,8 @@ export function CheckInForm() {
     setStatus("done");
     setMessage("Pin dropped! Taking you to your path…");
     setCaption("");
-    capturedFileRef.current = null;
+    clearPreview();
+    setPhase("idle");
   }
 
   async function capturePhoto() {
@@ -355,12 +357,14 @@ export function CheckInForm() {
   }
 
   async function postCapture() {
+    if (postingRef.current) return;
     const file = capturedFileRef.current;
     if (!file) {
       setStatus("error");
       setMessage("No photo to post. Retake and try again.");
       return;
     }
+    postingRef.current = true;
     try {
       await pinCapture(file);
     } catch (err) {
@@ -368,11 +372,16 @@ export function CheckInForm() {
       setMessage(
         err instanceof Error ? err.message : "Could not post that photo. Try again.",
       );
+    } finally {
+      postingRef.current = false;
     }
   }
 
   const posting =
-    status === "locating" || status === "located" || status === "uploading";
+    status === "locating" ||
+    status === "located" ||
+    status === "uploading" ||
+    status === "done";
   const busy = capturing || posting;
 
   return (
