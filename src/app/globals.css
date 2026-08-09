@@ -532,6 +532,95 @@ a {
   text-align: center;
 }
 
+.checkin-geo-banner {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--terracotta) 35%, transparent);
+  background: color-mix(in srgb, var(--terracotta) 12%, var(--paper));
+  color: var(--ink);
+}
+
+.checkin-geo-banner > p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.checkin-geo-howto-toggle {
+  margin-top: 0.45rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--forest);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.checkin-geo-howto {
+  margin: 0.55rem 0 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper) 80%, var(--sage));
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.checkin-geo-howto p {
+  margin: 0;
+}
+
+.checkin-geo-howto p + p {
+  margin-top: 0.35rem;
+}
+
+.checkin-location-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  margin: 0.15rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.checkin-location-status.pulse {
+  animation: checkin-location-pulse 1.4s ease-in-out infinite;
+}
+
+.checkin-location-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--forest);
+  flex: 0 0 auto;
+}
+
+.checkin-geo-retry {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-top: 0.35rem;
+}
+
+@keyframes checkin-location-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .photo-stage img,
 .photo-stage .photo-camera {
   width: 100%;
