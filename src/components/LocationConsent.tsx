@@ -28,7 +28,7 @@ export function LocationConsent() {
       // Warm the browser permission prompt once up front.
       await getCurrentPosition();
     } catch {
-      // User may deny; capture flow still has a demo fallback.
+      // User may deny; check-in flow will block until location is available.
     } finally {
       setBusy(false);
       setOpen(false);
