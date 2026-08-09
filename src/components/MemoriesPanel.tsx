@@ -165,7 +165,7 @@ export function MemoriesPanel() {
         <h2>Past mosaics</h2>
         {memoryDays.length === 0 ? (
           <p className="meta">
-            Past days show up here after {cutoffLabel()}, each with every photo
+            Past days show up here after {cutoffLabel()} ET, each with every photo
             from that day.
           </p>
         ) : (

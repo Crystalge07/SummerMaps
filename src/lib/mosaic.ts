@@ -1,8 +1,13 @@
-import { dayKey, getTodaysPrompt } from "./prompts";
+import {
+  dayKey,
+  getPromptForDayKey,
+  isAfterMosaicCutoff,
+  MOSAIC_CUTOFF_HOUR,
+  mosaicWindowForDayKey,
+} from "./prompts";
 import type { CheckIn } from "./types";
 
-/** Local hour when today's mosaic locks (no more photos added). */
-export const MOSAIC_CUTOFF_HOUR = 21;
+export { MOSAIC_CUTOFF_HOUR, isAfterMosaicCutoff };
 
 export type MosaicDay = {
   dayKey: string;
@@ -12,25 +17,18 @@ export type MosaicDay = {
   locked: boolean;
 };
 
+/** Local calendar date at noon for display labels (avoids TZ shift). */
 export function parseDayKey(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  return new Date(y, m - 1, d, 12);
 }
 
-/** Midnight → cutoff for a local calendar day. Photos at/after cutoff are excluded. */
+/** Previous 10pm ET → this day's 10pm ET. Photos at/after end belong to the next day. */
 export function mosaicWindowForDay(key: string): { start: Date; end: Date } {
-  const start = parseDayKey(key);
-  start.setHours(0, 0, 0, 0);
-  const end = parseDayKey(key);
-  end.setHours(MOSAIC_CUTOFF_HOUR, 0, 0, 0);
-  return { start, end };
+  return mosaicWindowForDayKey(key);
 }
 
-export function isAfterMosaicCutoff(now = new Date()): boolean {
-  return now.getHours() >= MOSAIC_CUTOFF_HOUR;
-}
-
-/** Locked = past days, or today at/after the cutoff. */
+/** Locked = past mosaic days, or today's key at/after the 10pm ET cutoff. */
 export function isMosaicLocked(key: string, now = new Date()): boolean {
   const today = dayKey(now);
   if (key < today) return true;
@@ -71,7 +69,7 @@ export function lastRowSpans(itemCount: number, cols: number): number[] {
 
 /**
  * Group all city finds into shared mosaic days (everyone, not per-user).
- * Every photo from that calendar day is included — no cutoff filter.
+ * Day membership uses the 10pm ET boundary via dayKey().
  */
 export function buildMosaicDays(
   checkins: CheckIn[],
@@ -97,7 +95,7 @@ export function buildMosaicDays(
     if (photos.length === 0) continue;
     days.push({
       dayKey: key,
-      prompt: getTodaysPrompt(parseDayKey(key)),
+      prompt: getPromptForDayKey(key),
       checkins: photos,
       locked: isMosaicLocked(key, now),
     });
