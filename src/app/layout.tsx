@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Caveat, Nunito, Playfair_Display } from "next/font/google";
 import { AppChrome } from "@/components/AppChrome";
+import { ClickSounds } from "@/components/ClickSounds";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
@@ -46,6 +47,7 @@ export default function RootLayout({
     >
       <body>
         <AuthProvider>
+          <ClickSounds />
           <AppChrome>{children}</AppChrome>
         </AuthProvider>
       </body>

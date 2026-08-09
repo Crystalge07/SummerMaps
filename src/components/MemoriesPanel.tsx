@@ -130,11 +130,6 @@ export function MemoriesPanel() {
                 badge="Live"
                 onOpen={() => setActiveMosaic(todayMosaic)}
               />
-              <p className="meta">
-                {todayMosaic.checkins.length}{" "}
-                {todayMosaic.checkins.length === 1 ? "photo" : "photos"} · tap
-                to open
-              </p>
             </div>
           ) : (
             <p className="meta memories-empty">
