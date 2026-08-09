@@ -8,22 +8,104 @@ import {
   getFriendDeviceIds,
   getIncomingFriendRequests,
   getProfileByDeviceId,
+  getTodayCheckinsForDevices,
   removeFriend,
   searchProfiles,
   sendFriendRequestByUsername,
 } from "@/lib/api";
 import { useAuthOptional } from "@/lib/auth";
 import { colorForDevice } from "@/lib/colors";
+import { detectCrossings, type PathCrossing } from "@/lib/crossings";
 import { getDeviceId } from "@/lib/device";
-import type { DeviceProfile, FriendRequest, Profile } from "@/lib/types";
+import type {
+  CheckIn,
+  DeviceProfile,
+  FriendRequest,
+  Profile,
+} from "@/lib/types";
 import { normalizeUsername } from "@/lib/username";
 import { DemoSeedButton } from "./DemoSeedButton";
 
 const SHARE_ORIGIN = "https://summer-maps.vercel.app";
 
+type FriendCrossingSummary = {
+  count: number;
+  lastNear: string | null;
+};
+
 function friendLabel(friend: DeviceProfile): string {
   const name = friend.display_name?.trim();
   return name ? `@${name}` : "Friend";
+}
+
+function locationNearCrossing(
+  crossing: PathCrossing,
+  a: CheckIn[],
+  b: CheckIn[],
+): string | null {
+  let best: { name: string; d2: number } | null = null;
+  for (const c of [...a, ...b]) {
+    const name = c.location_name?.trim();
+    if (!name) continue;
+    const dLat = c.lat - crossing.lat;
+    const dLng = c.lng - crossing.lng;
+    const d2 = dLat * dLat + dLng * dLng;
+    if (!best || d2 < best.d2) best = { name, d2 };
+  }
+  return best?.name ?? null;
+}
+
+function summarizeFriendCrossings(
+  myId: string,
+  friendId: string,
+  myCheckins: CheckIn[],
+  friendCheckins: CheckIn[],
+): FriendCrossingSummary | null {
+  if (myCheckins.length === 0 || friendCheckins.length === 0) return null;
+  const crossings = detectCrossings([
+    {
+      deviceId: myId,
+      checkins: myCheckins,
+      color: "#000",
+      label: "You",
+      connect: true,
+    },
+    {
+      deviceId: friendId,
+      checkins: friendCheckins,
+      color: "#000",
+      label: "Friend",
+      connect: true,
+    },
+  ]);
+  if (crossings.length === 0) return null;
+  const latest = [...crossings].sort((a, b) => {
+    const aT = Math.max(
+      new Date(a.timeA).getTime(),
+      new Date(a.timeB).getTime(),
+    );
+    const bT = Math.max(
+      new Date(b.timeA).getTime(),
+      new Date(b.timeB).getTime(),
+    );
+    return bT - aT;
+  })[0];
+  return {
+    count: crossings.length,
+    lastNear: latest
+      ? locationNearCrossing(latest, myCheckins, friendCheckins)
+      : null,
+  };
+}
+
+function crossingSummaryText(summary: FriendCrossingSummary): string {
+  const n = summary.count;
+  const times = n === 1 ? "time" : "times";
+  const base =
+    n >= 5
+      ? `🔥 crossed paths ${n} ${times} today`
+      : `📍 crossed paths ${n} ${times} today`;
+  return summary.lastNear ? `${base} · last near ${summary.lastNear}` : base;
 }
 
 type IncomingRequest = FriendRequest & { from: DeviceProfile };
@@ -44,6 +126,9 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actingRequestId, setActingRequestId] = useState<string | null>(null);
+  const [crossingByFriend, setCrossingByFriend] = useState<
+    Record<string, FriendCrossingSummary>
+  >({});
 
   useEffect(() => {
     if (!initialCode || initialCode.length === 6) return;
@@ -95,6 +180,35 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
       })),
     );
     setIncoming(incomingRows);
+
+    if (ids.length === 0) {
+      setCrossingByFriend({});
+      return;
+    }
+
+    try {
+      const checkins = await getTodayCheckinsForDevices([deviceId, ...ids]);
+      const byDevice = new Map<string, CheckIn[]>();
+      for (const c of checkins) {
+        const list = byDevice.get(c.device_id) ?? [];
+        list.push(c);
+        byDevice.set(c.device_id, list);
+      }
+      const myCheckins = byDevice.get(deviceId) ?? [];
+      const next: Record<string, FriendCrossingSummary> = {};
+      for (const friendId of ids) {
+        const summary = summarizeFriendCrossings(
+          deviceId,
+          friendId,
+          myCheckins,
+          byDevice.get(friendId) ?? [],
+        );
+        if (summary) next[friendId] = summary;
+      }
+      setCrossingByFriend(next);
+    } catch {
+      setCrossingByFriend({});
+    }
   }
 
   useEffect(() => {
@@ -402,8 +516,6 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
 
         {friends.length === 0 ? (
           <div className="friends-empty">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/path-mark.svg" alt="" width={56} height={56} />
             <p>Two paths that haven&apos;t connected yet.</p>
             <p className="meta">Share your username to find each other.</p>
           </div>
@@ -413,6 +525,7 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
               const label = friendLabel(f);
               const confirming = confirmRemoveId === f.device_id;
               const busy = removingId === f.device_id;
+              const crossing = crossingByFriend[f.device_id];
               return (
                 <li key={f.device_id}>
                   {confirming ? (
@@ -438,32 +551,45 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="friends-contact-row">
-                      <a
-                        className="friends-contact-main"
-                        href="/map?layer=friends"
-                      >
-                        <span
-                          className="friends-color-dot"
-                          style={{ background: colorForDevice(f.device_id) }}
-                        />
-                        <span className="friends-contact-name">{label}</span>
-                      </a>
-                      <button
-                        type="button"
-                        className="friends-contact-remove"
-                        aria-label={`Remove ${label}`}
-                        onClick={() => setConfirmRemoveId(f.device_id)}
-                      >
-                        ×
-                      </button>
-                      <a
-                        className="friends-contact-go"
-                        href="/map?layer=friends"
-                        aria-label={`Open map with ${label}`}
-                      >
-                        on the map →
-                      </a>
+                    <div className="friends-contact-block">
+                      <div className="friends-contact-row">
+                        <a
+                          className="friends-contact-main"
+                          href="/map?layer=friends"
+                        >
+                          <span
+                            className="friends-color-dot"
+                            style={{ background: colorForDevice(f.device_id) }}
+                          />
+                          <span className="friends-contact-name">{label}</span>
+                        </a>
+                        <button
+                          type="button"
+                          className="friends-contact-remove"
+                          aria-label={`Remove ${label}`}
+                          onClick={() => setConfirmRemoveId(f.device_id)}
+                        >
+                          ×
+                        </button>
+                        <a
+                          className="friends-contact-go"
+                          href="/map?layer=friends"
+                          aria-label={`Open map with ${label}`}
+                        >
+                          on the map →
+                        </a>
+                      </div>
+                      {crossing ? (
+                        <p
+                          className={
+                            crossing.count >= 5
+                              ? "friends-crossing-summary friends-crossing-summary-hot"
+                              : "friends-crossing-summary"
+                          }
+                        >
+                          {crossingSummaryText(crossing)}
+                        </p>
+                      ) : null}
                     </div>
                   )}
                 </li>

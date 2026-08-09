@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   checkinsAsUnlinkedPins,
@@ -19,6 +20,7 @@ import {
   getTodayCityCheckins,
 } from "@/lib/api";
 import { colorForDevice } from "@/lib/colors";
+import { detectCrossings } from "@/lib/crossings";
 import { getDeviceId } from "@/lib/device";
 import { curvedLineThrough } from "@/lib/pathGeometry";
 import type { CheckIn, PathSeries } from "@/lib/types";
@@ -93,6 +95,7 @@ export function UnifiedMapView() {
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgress, setReplayProgress] = useState(100);
   const [replayActive, setReplayActive] = useState(false);
+  const [replayHint, setReplayHint] = useState("");
   const [visiblePinIds, setVisiblePinIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -198,6 +201,43 @@ export function UnifiedMapView() {
   }, [loadAll, freshParam, layerParam]);
 
   const pathsOn = pathToggles.mine || pathToggles.friends;
+
+  const friendCrossings = useMemo(() => {
+    if (!myPath || myPath.checkins.length === 0) return [];
+    return friendPaths.flatMap((friendPath) =>
+      friendPath.checkins.length === 0
+        ? []
+        : detectCrossings([myPath, friendPath]),
+    );
+  }, [myPath, friendPaths]);
+
+  const strangerCrossingCount = useMemo(() => {
+    if (!myPath || myPath.checkins.length === 0) return 0;
+    const knownIds = new Set<string>();
+    for (const c of myPath.checkins) knownIds.add(c.id);
+    for (const path of friendPaths) {
+      for (const c of path.checkins) knownIds.add(c.id);
+    }
+    const knownKeys = new Set<string>();
+    for (const c of myPath.checkins) {
+      knownKeys.add(`${c.lat}|${c.lng}|${c.created_at}`);
+    }
+    for (const path of friendPaths) {
+      for (const c of path.checkins) {
+        knownKeys.add(`${c.lat}|${c.lng}|${c.created_at}`);
+      }
+    }
+    const strangers = cityPins.filter((pin) => {
+      const c = pin.checkins[0];
+      if (!c) return false;
+      if (knownIds.has(c.id)) return false;
+      return !knownKeys.has(`${c.lat}|${c.lng}|${c.created_at}`);
+    });
+    return strangers.reduce(
+      (total, pin) => total + detectCrossings([myPath, pin]).length,
+      0,
+    );
+  }, [myPath, friendPaths, cityPins]);
 
   const colorByDevice = useMemo(() => {
     const map = new Map<string, string>();
@@ -434,7 +474,12 @@ export function UnifiedMapView() {
 
   function onReplay() {
     const checkIns = replayCheckIns;
-    if (checkIns.length === 0) return;
+    if (checkIns.length === 0) {
+      setReplayHint("Enable a path to replay");
+      window.setTimeout(() => setReplayHint(""), 2500);
+      return;
+    }
+    setReplayHint("");
     abortRef.current += 1;
     setVisiblePinIds(new Set());
     setRevealedLineDevices(new Set());
@@ -506,14 +551,25 @@ export function UnifiedMapView() {
         <p className="map-status-chip error">{error}</p>
       )}
 
+      {!loading && strangerCrossingCount >= 5 && (
+        <div className="map-stranger-crossing-banner" role="status">
+          <p>
+            You crossed paths with strangers {strangerCrossingCount} times
+            today without knowing it 🌐
+          </p>
+          <Link href="/friends">Add friends to see who →</Link>
+        </div>
+      )}
+
       <PathMap
         paths={visiblePaths}
+        crossings={friendCrossings}
         anonymizePhotos={false}
         onSelectCheckIn={setSelected}
         viewMode={pathsOn ? "lines" : viewMode}
         focus={pathsOn ? "all" : "checkins"}
         initialCenter={initialCenter}
-        ownDeviceId={myDeviceId}
+        ownDeviceId={myPath?.deviceId ?? myDeviceId}
         replayVisual={showReplay ? replayVisual : null}
         onDeleteCheckIn={
           myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
@@ -603,6 +659,11 @@ export function UnifiedMapView() {
               onScrub={onScrub}
               onScrubEnd={onScrubEnd}
             />
+            {replayHint ? (
+              <p className="meta" role="status">
+                {replayHint}
+              </p>
+            ) : null}
           </div>
         )}
       </div>

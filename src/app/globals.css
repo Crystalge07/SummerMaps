@@ -605,42 +605,6 @@ a {
   flex: 0 0 auto;
 }
 
-.checkin-geo-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.55rem;
-  flex: 0 0 auto;
-  margin-top: 0.35rem;
-  width: 100%;
-}
-
-.checkin-geo-fallback {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--forest);
-  font: inherit;
-  font-size: 0.88rem;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.checkin-geo-fallback:active {
-  opacity: 0.75;
-}
-
-.checkin-geo-fallback-hint {
-  margin: 0;
-  max-width: 22rem;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--ink-soft);
-  text-align: center;
-}
-
 @keyframes checkin-location-pulse {
   0%,
   100% {
@@ -1120,17 +1084,35 @@ input.underline-input:focus {
   cursor: not-allowed;
 }
 
+.friends-contact-block {
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  padding-bottom: 0.55rem;
+}
+
 .friends-contact-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 0;
+  padding: 0.75rem 0 0.2rem;
   border-radius: 0;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-bottom: 0;
   box-shadow: none;
   min-height: 3rem;
+}
+
+.friends-crossing-summary {
+  margin: 0 0 0 1.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--sage) 75%, var(--ink-soft));
+}
+
+.friends-crossing-summary-hot {
+  color: var(--sage-deep);
+  font-weight: 700;
 }
 
 .friends-contact-main {
@@ -1475,13 +1457,8 @@ input.underline-input:focus {
 
 .map-top-chrome {
   position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  right: 0.75rem;
+  inset: 0;
   z-index: 5;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.45rem;
   pointer-events: none;
 }
 
@@ -1490,26 +1467,31 @@ input.underline-input:focus {
 }
 
 .map-city-header {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
   margin: 0;
   padding: 0.5rem 0.85rem;
   border-radius: 12px;
   background: color-mix(in srgb, var(--paper) 92%, white);
   border: 1px solid var(--line);
   box-shadow: var(--card-shadow);
+  white-space: nowrap;
 }
 
 .map-city-header strong {
-  display: block;
-  font-family: var(--font-display), "Playfair Display", serif;
-  font-size: 1.1rem;
+  display: inline;
+  font-family: var(--font-body), "Nunito", sans-serif;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--ink);
+  letter-spacing: 0.05em;
+  color: var(--sage-deep);
 }
 
 .map-city-header span {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--ink-soft);
+  display: none;
 }
 
 .map-bottom-chrome {
@@ -1551,12 +1533,31 @@ input.underline-input:focus {
   cursor: pointer;
   box-shadow: var(--card-shadow);
   width: 100%;
+  transform: none;
+  transition: none;
 }
 
-.map-paths-panel.open .map-paths-toggle {
+.map-paths-toggle:hover,
+.map-paths-toggle:active,
+.map-paths-toggle:focus,
+.map-paths-toggle:focus-visible {
+  transform: none;
+  background: color-mix(in srgb, var(--paper) 92%, white);
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: var(--card-shadow);
+}
+
+.map-paths-panel.open .map-paths-toggle,
+.map-paths-panel.open .map-paths-toggle:hover,
+.map-paths-panel.open .map-paths-toggle:active,
+.map-paths-panel.open .map-paths-toggle:focus,
+.map-paths-panel.open .map-paths-toggle:focus-visible {
   background: var(--sage-deep);
   border-color: var(--sage-deep);
   color: #fdfaf4;
+  transform: none;
+  box-shadow: var(--card-shadow);
 }
 
 .map-paths-body {
@@ -2244,16 +2245,80 @@ input.underline-input:focus {
 }
 
 .crossing-dot {
+  display: block;
   width: 12px;
   height: 12px;
+  padding: 0;
+  margin: 0;
   border-radius: 50%;
-  background: var(--butter);
-  border: 1px solid var(--ink);
+  background: var(--color-accent, #e8c547);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  animation: crossing-dot-pulse 2s ease-in-out infinite;
 }
 
 .crossing-dot-focus {
   width: 16px;
   height: 16px;
+}
+
+@keyframes crossing-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.crossing-popup .mapboxgl-popup-content {
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  background: var(--color-bg-card, var(--paper));
+  box-shadow: var(--card-shadow-lg);
+}
+
+.crossing-popup-text {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--ink);
+  max-width: 14rem;
+}
+
+.map-stranger-crossing-banner {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  width: min(22rem, calc(100% - 1.5rem));
+  padding: 0.65rem 0.85rem;
+  border-radius: 14px;
+  background: var(--color-bg-card, var(--paper));
+  border: 1px solid var(--sage, var(--color-green-secondary));
+  box-shadow: var(--card-shadow);
+  display: grid;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.map-stranger-crossing-banner p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.map-stranger-crossing-banner a {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--sage-deep);
+  text-decoration: none;
 }
 
 .replay-bar {

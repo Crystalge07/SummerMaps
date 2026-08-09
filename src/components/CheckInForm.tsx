@@ -46,7 +46,6 @@ export function CheckInForm() {
     useState<GeoPermission>("unknown");
   const [showHowTo, setShowHowTo] = useState(false);
   const [locationStatus, setLocationStatus] = useState("");
-  const [pendingRetry, setPendingRetry] = useState(false);
   const prompt = getTodaysPrompt();
 
   // Only block UI messaging for explicit denial — never for prompt/unknown (Safari).
@@ -169,7 +168,6 @@ export function CheckInForm() {
     setStartingCamera(true);
     setStatus("idle");
     setMessage("");
-    setPendingRetry(false);
     setLocationStatus("");
 
     try {
@@ -208,7 +206,6 @@ export function CheckInForm() {
     locationName: string;
   }> {
     setStatus("locating");
-    setPendingRetry(false);
     setLocationStatus("📍 Finding your location…");
     setMessage("");
 
@@ -229,67 +226,36 @@ export function CheckInForm() {
     return { position, locationName };
   }
 
-  async function pinCapture(
-    file: File,
-    options?: { allowFallback?: boolean },
-  ) {
+  async function pinCapture(file: File) {
     let position: Coords;
     let locationName = "";
     let usedFallback = false;
 
-    if (options?.allowFallback) {
-      position = STACKT_MARKET;
-      locationName = STACKT_MARKET_NAME;
-      usedFallback = true;
-      setPendingRetry(false);
-      setLocationStatus("");
-    } else {
+    try {
+      const resolved = await resolvePosition();
+      position = resolved.position;
+      locationName = resolved.locationName;
+    } catch (firstErr) {
+      if (firstErr instanceof GeoError && firstErr.code === "denied") {
+        setGeoPermission("denied");
+      }
       try {
         const resolved = await resolvePosition();
         position = resolved.position;
         locationName = resolved.locationName;
-      } catch (err) {
-        const geo = err instanceof GeoError ? err : null;
-        if (geo?.code === "denied") {
+      } catch (secondErr) {
+        if (secondErr instanceof GeoError && secondErr.code === "denied") {
           setGeoPermission("denied");
-          setStatus("error");
-          setPendingRetry(true);
-          setLocationStatus("");
-          setMessage(
-            "📍 Location access is needed for a precise pin. Enable it in your browser settings, try again, or post near STACKT market.",
-          );
-          return;
         }
-        if (geo?.code === "timeout" || geo?.code === "unavailable") {
-          setStatus("error");
-          setPendingRetry(true);
-          setLocationStatus("");
-          setMessage(
-            geo.code === "timeout"
-              ? "Having trouble finding your location… Move to an area with better signal and try again, or post without precise location."
-              : `${geo.message} You can try again or post without precise location.`,
-          );
-          return;
-        }
-        setStatus("error");
-        setPendingRetry(true);
-        setLocationStatus("");
-        setMessage(
-          err instanceof Error
-            ? `${err.message} You can try again or post without precise location.`
-            : "Could not determine your location. Try again, or post without precise location.",
-        );
-        return;
+        position = STACKT_MARKET;
+        locationName = STACKT_MARKET_NAME;
+        usedFallback = true;
       }
     }
 
     setStatus("uploading");
     setLocationStatus("");
-    setMessage(
-      usedFallback
-        ? "Dropping your pin near STACKT market (approximate)…"
-        : "Dropping your pin…",
-    );
+    setMessage("Dropping your pin…");
 
     const deviceId = getDeviceId();
     const photoUrl = await uploadCheckInPhoto(file, deviceId);
@@ -303,16 +269,12 @@ export function CheckInForm() {
       location_name: locationName || null,
     });
 
-    setSpottedAt(locationName || null);
+    // Don't surface STACKT in the success flash — store the name on the pin only.
+    setSpottedAt(usedFallback ? null : locationName || null);
     setStatus("done");
-    setMessage(
-      usedFallback
-        ? "Pin dropped near STACKT market! Taking you to your path…"
-        : "Pin dropped! Taking you to your path…",
-    );
+    setMessage("Pin dropped! Taking you to your path…");
     setCaption("");
     capturedFileRef.current = null;
-    setPendingRetry(false);
   }
 
   async function capturePhoto() {
@@ -388,12 +350,11 @@ export function CheckInForm() {
     clearPreview();
     setStatus("idle");
     setMessage("");
-    setPendingRetry(false);
     setLocationStatus("");
     void startCamera();
   }
 
-  async function postCapture(options?: { allowFallback?: boolean }) {
+  async function postCapture() {
     const file = capturedFileRef.current;
     if (!file) {
       setStatus("error");
@@ -401,10 +362,9 @@ export function CheckInForm() {
       return;
     }
     try {
-      await pinCapture(file, options);
+      await pinCapture(file);
     } catch (err) {
       setStatus("error");
-      setPendingRetry(true);
       setMessage(
         err instanceof Error ? err.message : "Could not post that photo. Try again.",
       );
@@ -430,8 +390,8 @@ export function CheckInForm() {
       {locationDenied && (
         <div className="checkin-geo-banner" role="status">
           <p>
-            📍 Location access is off. Enable it for a precise pin, or after
-            capturing you can post near STACKT market.
+            📍 Location access is off. Enable it in your browser settings for a
+            more accurate pin.
           </p>
           <button
             type="button"
@@ -493,7 +453,7 @@ export function CheckInForm() {
                   className="camera-post"
                   onClick={() => void postCapture()}
                 >
-                  {pendingRetry ? "Try again" : "Post"}
+                  Post
                 </button>
               </div>
             )}
@@ -597,21 +557,6 @@ export function CheckInForm() {
         >
           {message}
         </p>
-      )}
-
-      {pendingRetry && capturedFileRef.current && (
-        <div className="checkin-geo-actions">
-          <button
-            type="button"
-            className="checkin-geo-fallback"
-            onClick={() => void postCapture({ allowFallback: true })}
-          >
-            Post without precise location
-          </button>
-          <p className="checkin-geo-fallback-hint">
-            Pins near STACKT market (28 Bathurst St) as an approximate place.
-          </p>
-        </div>
       )}
 
       <p className="checkin-footer">
