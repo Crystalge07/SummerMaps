@@ -97,7 +97,7 @@ export function InsightsView() {
         <div className="panel dash-hero insights-hero">
           <h1>Insights</h1>
           <p className="meta insights-scope">
-            Insights beyond your own
+            Community Finds
           </p>
           <p className="meta insights-updated">
             <span className="live-dot" aria-hidden="true" />

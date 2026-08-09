@@ -28,10 +28,14 @@ function MemoryCard({
   onOpen: () => void;
   badge?: string;
 }) {
+  const thumbs = day.checkins.slice(0, 9);
+  const thumbClass =
+    thumbs.length > 4 ? "memory-thumbs memory-thumbs-dense" : "memory-thumbs";
+
   return (
     <button type="button" className="memory-card" onClick={onOpen}>
-      <div className="memory-thumbs" aria-hidden="true">
-        {day.checkins.slice(0, 4).map((c) => (
+      <div className={thumbClass} aria-hidden="true">
+        {thumbs.map((c) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={c.id} src={c.photo_url} alt="" />
         ))}
@@ -43,7 +47,7 @@ function MemoryCard({
         </strong>
         <span>
           <em>{day.prompt}</em> · {day.checkins.length}{" "}
-          {day.checkins.length === 1 ? "find" : "finds"}
+          {day.checkins.length === 1 ? "photo" : "photos"}
         </span>
       </div>
     </button>
@@ -115,8 +119,7 @@ export function MemoriesPanel() {
       <section className="profile-block memories-block">
         <h2>Mosaic</h2>
         <p className="meta">
-          Everyone&apos;s finds become one shared collage through the day. It
-          locks at {cutoffLabel()}.
+          Everyone&apos;s photos from the day — the full collage, all of them.
         </p>
 
         {!locked ? (
@@ -128,13 +131,14 @@ export function MemoriesPanel() {
                 onOpen={() => setActiveMosaic(todayMosaic)}
               />
               <p className="meta">
-                Updating through {cutoffLabel()} · tap to open
+                {todayMosaic.checkins.length}{" "}
+                {todayMosaic.checkins.length === 1 ? "photo" : "photos"} · tap
+                to open
               </p>
             </div>
           ) : (
             <p className="meta memories-empty">
-              As people capture today, the mosaic fills here until{" "}
-              {cutoffLabel()}.
+              As people capture today, every photo lands in the mosaic.
             </p>
           )
         ) : todayMosaic ? (
@@ -147,15 +151,13 @@ export function MemoriesPanel() {
               Show today&apos;s mosaic
             </button>
             <span className="meta">
-              Locked · {todayMosaic.checkins.length}{" "}
-              {todayMosaic.checkins.length === 1 ? "find" : "finds"} ·{" "}
+              {todayMosaic.checkins.length}{" "}
+              {todayMosaic.checkins.length === 1 ? "photo" : "photos"} ·{" "}
               <em>{todayMosaic.prompt}</em>
             </span>
           </div>
         ) : (
-          <p className="meta memories-empty">
-            No city finds before {cutoffLabel()} today.
-          </p>
+          <p className="meta memories-empty">No city photos today yet.</p>
         )}
       </section>
 
@@ -163,8 +165,8 @@ export function MemoriesPanel() {
         <h2>Past mosaics</h2>
         {memoryDays.length === 0 ? (
           <p className="meta">
-            After {cutoffLabel()}, today&apos;s collage lands here with earlier
-            days.
+            Past days show up here after {cutoffLabel()}, each with every photo
+            from that day.
           </p>
         ) : (
           <ul className="memories-list">
