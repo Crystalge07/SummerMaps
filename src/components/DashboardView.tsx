@@ -239,8 +239,8 @@ export function DashboardView() {
           <h1>Memories</h1>
           <p className="lede">
             Everyone&apos;s finds build one shared mosaic live through the day.
-            At {cutoffLabel()} it locks — later finds still hit the map, but not
-            tonight&apos;s collage.
+            At {cutoffLabel()} ET it locks — later finds roll into tomorrow&apos;s
+            map and mosaic.
           </p>
 
           {!locked ? (
@@ -252,14 +252,14 @@ export function DashboardView() {
                   onOpen={() => setActiveMosaic(todayMosaic)}
                 />
                 <p className="meta">
-                  City-wide · updating through {cutoffLabel()} · tap for full
+                  City-wide · updating through {cutoffLabel()} ET · tap for full
                   screen
                 </p>
               </div>
             ) : (
               <p className="meta memories-empty">
                 As people notice today, their finds fill the shared mosaic until{" "}
-                {cutoffLabel()}.
+                {cutoffLabel()} ET.
               </p>
             )
           ) : todayMosaic ? (
@@ -279,8 +279,8 @@ export function DashboardView() {
             </div>
           ) : (
             <p className="meta memories-empty">
-              No city finds before {cutoffLabel()} today — nothing locked into a
-              mosaic.
+              No city finds before {cutoffLabel()} ET today — nothing locked into
+              a mosaic.
             </p>
           )}
         </div>
@@ -289,8 +289,8 @@ export function DashboardView() {
           <h2>Past mosaics</h2>
           {memoryDays.length === 0 ? (
             <p className="meta">
-              After {cutoffLabel()}, today&apos;s shared collage lands here with
-              the rest of the city&apos;s days.
+              After {cutoffLabel()} ET, today&apos;s shared collage lands here
+              with the rest of the city&apos;s days.
             </p>
           ) : (
             <ul className="memories-list">

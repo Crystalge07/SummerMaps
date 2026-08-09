@@ -15,25 +15,15 @@ import type {
   PathSeries,
   Profile,
 } from "./types";
-import { getTodaysPrompt } from "./prompts";
+import { mosaicDayBoundsISO } from "./prompts";
 import { isUsernameTakenError, normalizeUsername } from "./username";
 
 function startOfTodayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+  return mosaicDayBoundsISO().start;
 }
 
 function endOfTodayISO() {
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d.toISOString();
-}
-
-/** Map "today" only shows finds for the current prompt — older same-day themes stay in the DB. */
-function forTodaysPrompt<T extends { prompt?: string | null }>(rows: T[]): T[] {
-  const prompt = getTodaysPrompt();
-  return rows.filter((r) => (r.prompt ?? "").trim() === prompt);
+  return mosaicDayBoundsISO().end;
 }
 
 export async function uploadCheckInPhoto(
@@ -152,12 +142,11 @@ export async function getTodayCheckinsForDevice(
     .from("checkins")
     .select("*")
     .eq("device_id", deviceId)
-    .eq("prompt", getTodaysPrompt())
     .gte("created_at", startOfTodayISO())
     .lte("created_at", endOfTodayISO())
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return forTodaysPrompt((data ?? []) as CheckIn[]);
+  return (data ?? []) as CheckIn[];
 }
 
 export async function getTodayCheckinsForDevices(
@@ -171,12 +160,11 @@ export async function getTodayCheckinsForDevices(
     .from("checkins")
     .select("*")
     .in("device_id", deviceIds)
-    .eq("prompt", getTodaysPrompt())
     .gte("created_at", startOfTodayISO())
     .lte("created_at", endOfTodayISO())
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return forTodaysPrompt((data ?? []) as CheckIn[]);
+  return (data ?? []) as CheckIn[];
 }
 
 export async function getTodayCityCheckins(): Promise<CheckIn[]> {
@@ -186,12 +174,11 @@ export async function getTodayCityCheckins(): Promise<CheckIn[]> {
   const { data, error } = await supabase
     .from("checkins")
     .select("id, lat, lng, photo_url, caption, created_at, device_id, prompt")
-    .eq("prompt", getTodaysPrompt())
     .gte("created_at", startOfTodayISO())
     .lte("created_at", endOfTodayISO())
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return forTodaysPrompt((data ?? []) as CheckIn[]);
+  return (data ?? []) as CheckIn[];
 }
 
 export async function getAllCheckins(): Promise<CheckIn[]> {

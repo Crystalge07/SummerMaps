@@ -1,4 +1,11 @@
-/** Shared daily prompts — everyone sees the same one for a given calendar day. */
+/** Shared daily prompts — everyone sees the same one for a given mosaic day. */
+
+/**
+ * Mosaic days run on America/New_York time and roll at 10pm.
+ * A capture at/after 10pm ET belongs to the next calendar day's mosaic.
+ */
+export const MOSAIC_TIMEZONE = "America/New_York";
+export const MOSAIC_CUTOFF_HOUR = 22;
 
 const PROMPTS = [
   "purple",
@@ -34,19 +41,147 @@ const PROMPTS = [
   "textures you'd want to touch",
   "transitions",
   "hidden beauty",
+  "warmth",
+  "hidden beauties",
 ];
 
-/** Pin a specific calendar day to a prompt (YYYY-MM-DD → prompt). */
+/** Pin a specific mosaic day to a prompt (YYYY-MM-DD → prompt). */
 const PROMPT_OVERRIDES: Record<string, string> = {
-  "2026-08-08": "hidden beauty",
+  "2026-08-08": "warmth",
+  "2026-08-09": "hidden beauties",
 };
 
-/** Stable day index from local calendar date (YYYY-MM-DD). */
+type ZonedParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+function zonedParts(date: Date, timeZone = MOSAIC_TIMEZONE): ZonedParts {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = Object.fromEntries(
+    fmt
+      .formatToParts(date)
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    second: Number(parts.second),
+  };
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function formatDayKey(year: number, month: number, day: number): string {
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+function addCalendarDays(
+  year: number,
+  month: number,
+  day: number,
+  delta: number,
+): { year: number; month: number; day: number } {
+  const dt = new Date(Date.UTC(year, month - 1, day + delta, 12));
+  return {
+    year: dt.getUTCFullYear(),
+    month: dt.getUTCMonth() + 1,
+    day: dt.getUTCDate(),
+  };
+}
+
+/** Convert a wall-clock time in MOSAIC_TIMEZONE to a UTC Date. */
+export function zonedWallTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute = 0,
+  second = 0,
+): Date {
+  let ms = Date.UTC(year, month - 1, day, hour, minute, second);
+  for (let i = 0; i < 4; i++) {
+    const p = zonedParts(new Date(ms));
+    const asLocal = Date.UTC(
+      p.year,
+      p.month - 1,
+      p.day,
+      p.hour,
+      p.minute,
+      p.second,
+    );
+    const desired = Date.UTC(year, month - 1, day, hour, minute, second);
+    const delta = desired - asLocal;
+    if (delta === 0) break;
+    ms += delta;
+  }
+  return new Date(ms);
+}
+
+/**
+ * Mosaic day key for an instant (YYYY-MM-DD).
+ * At/after 10pm ET, the key advances to the next calendar day.
+ */
 export function dayKey(date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  const p = zonedParts(date);
+  if (p.hour >= MOSAIC_CUTOFF_HOUR) {
+    const next = addCalendarDays(p.year, p.month, p.day, 1);
+    return formatDayKey(next.year, next.month, next.day);
+  }
+  return formatDayKey(p.year, p.month, p.day);
+}
+
+/**
+ * Half-open window for a mosaic day key: previous 10pm ET → this day's 10pm ET.
+ * Example: 2026-08-09 → [2026-08-08 22:00 ET, 2026-08-09 22:00 ET).
+ */
+export function mosaicWindowForDayKey(key: string): { start: Date; end: Date } {
+  const [y, m, d] = key.split("-").map(Number);
+  const end = zonedWallTimeToUtc(y, m, d, MOSAIC_CUTOFF_HOUR);
+  const prev = addCalendarDays(y, m, d, -1);
+  const start = zonedWallTimeToUtc(
+    prev.year,
+    prev.month,
+    prev.day,
+    MOSAIC_CUTOFF_HOUR,
+  );
+  return { start, end };
+}
+
+/** ISO bounds for the mosaic day that contains `date` (default: now). */
+export function mosaicDayBoundsISO(date = new Date()): {
+  start: string;
+  end: string;
+} {
+  const { start, end } = mosaicWindowForDayKey(dayKey(date));
+  // end is exclusive in window logic; queries use inclusive end → 1ms before.
+  return {
+    start: start.toISOString(),
+    end: new Date(end.getTime() - 1).toISOString(),
+  };
+}
+
+export function isAfterMosaicCutoff(now = new Date()): boolean {
+  return zonedParts(now).hour >= MOSAIC_CUTOFF_HOUR;
 }
 
 function hashDay(key: string): number {
@@ -57,10 +192,13 @@ function hashDay(key: string): number {
   return h;
 }
 
-export function getTodaysPrompt(date = new Date()): string {
-  const key = dayKey(date);
+export function getPromptForDayKey(key: string): string {
   if (PROMPT_OVERRIDES[key]) return PROMPT_OVERRIDES[key];
   return PROMPTS[hashDay(key) % PROMPTS.length];
+}
+
+export function getTodaysPrompt(date = new Date()): string {
+  return getPromptForDayKey(dayKey(date));
 }
 
 export function getPromptMeta(date = new Date()) {

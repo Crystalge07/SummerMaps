@@ -6,7 +6,7 @@ import type {
   Friendship,
 } from "./types";
 import { friendCodeFromDeviceId } from "./friendCode";
-import { getTodaysPrompt } from "./prompts";
+import { mosaicDayBoundsISO } from "./prompts";
 
 const CHECKINS_KEY = "pathline_checkins";
 const PROFILES_KEY = "pathline_profiles";
@@ -33,11 +33,7 @@ function uid() {
 }
 
 function todayBounds() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
+  return mosaicDayBoundsISO();
 }
 
 function isToday(iso: string) {
@@ -92,37 +88,21 @@ export const localStore = {
   },
 
   async getTodayByDevice(deviceId: string): Promise<CheckIn[]> {
-    const prompt = getTodaysPrompt();
     return read<CheckIn[]>(CHECKINS_KEY, [])
-      .filter(
-        (c) =>
-          c.device_id === deviceId &&
-          isToday(c.created_at) &&
-          (c.prompt ?? "").trim() === prompt,
-      )
+      .filter((c) => c.device_id === deviceId && isToday(c.created_at))
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
   },
 
   async getTodayByDevices(deviceIds: string[]): Promise<CheckIn[]> {
     const set = new Set(deviceIds);
-    const prompt = getTodaysPrompt();
     return read<CheckIn[]>(CHECKINS_KEY, [])
-      .filter(
-        (c) =>
-          set.has(c.device_id) &&
-          isToday(c.created_at) &&
-          (c.prompt ?? "").trim() === prompt,
-      )
+      .filter((c) => set.has(c.device_id) && isToday(c.created_at))
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
   },
 
   async getTodayCity(): Promise<CheckIn[]> {
-    const prompt = getTodaysPrompt();
     return read<CheckIn[]>(CHECKINS_KEY, [])
-      .filter(
-        (c) =>
-          isToday(c.created_at) && (c.prompt ?? "").trim() === prompt,
-      )
+      .filter((c) => isToday(c.created_at))
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
   },
 
