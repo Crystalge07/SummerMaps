@@ -40,6 +40,39 @@ const CHART_TOOLTIP = {
   color: "var(--color-text)",
 };
 
+function usernameFor(
+  deviceId: string,
+  usernames: Record<string, string>,
+): string {
+  return (
+    usernames[deviceId] ||
+    deviceId.replace(/-/g, "").slice(0, 6).toUpperCase()
+  );
+}
+
+/** Place name only — never the "Someone captured…" sentence. */
+function placeForCheckIn(c: CheckIn): string | null {
+  const stored = c.location_name?.trim();
+  if (stored) return stored;
+  const label = captureMomentNearLabel(c.lat, c.lng, c.location_name);
+  if (/nearby$/i.test(label.trim())) return null;
+  const match = label.match(/\bnear\s+(.+)$/i);
+  const place = match?.[1]?.trim();
+  if (!place || /^by$/i.test(place)) return null;
+  return place;
+}
+
+function liveFeedLine(
+  c: CheckIn,
+  usernames: Record<string, string>,
+): string {
+  const time = format(displayCreatedAt(c.created_at), "h:mm a");
+  const user = usernameFor(c.device_id, usernames);
+  const place = placeForCheckIn(c);
+  if (place) return `${time} · @${user} · near ${place}`;
+  return `${time} · @${user}`;
+}
+
 export function InsightsView() {
   const [today, setToday] = useState<CheckIn[]>([]);
   const [all, setAll] = useState<CheckIn[]>([]);
@@ -161,19 +194,10 @@ export function InsightsView() {
               <li key={c.id}>
                 <Link
                   href={`/map?layer=city&view=lines&lat=${c.lat}&lng=${c.lng}`}
-                  className="live-feed-row"
+                  className="live-feed-row live-feed-row-inline"
                 >
-                  <time
-                    className="live-feed-time"
-                    dateTime={displayCreatedAt(c.created_at).toISOString()}
-                  >
-                    {format(displayCreatedAt(c.created_at), "h:mm a")}
-                  </time>
                   <span className="live-feed-body">
-                    @
-                    {usernames[c.device_id] ||
-                      c.device_id.replace(/-/g, "").slice(0, 6).toUpperCase()}{" "}
-                    · {captureMomentNearLabel(c.lat, c.lng, c.location_name)}
+                    {liveFeedLine(c, usernames)}
                   </span>
                 </Link>
               </li>
@@ -207,18 +231,7 @@ export function InsightsView() {
                     .sort((a, b) => b.created_at.localeCompare(a.created_at))
                     .map((c) => (
                       <li key={c.id} className="captures-row">
-                        <time>
-                          {format(displayCreatedAt(c.created_at), "h:mm a")}
-                        </time>
-                        <span>
-                          @
-                          {usernames[c.device_id] ||
-                            c.device_id
-                              .replace(/-/g, "")
-                              .slice(0, 6)
-                              .toUpperCase()}
-                          {c.location_name ? ` · ${c.location_name}` : ""}
-                        </span>
+                        {liveFeedLine(c, usernames)}
                       </li>
                     ))}
                 </ul>
