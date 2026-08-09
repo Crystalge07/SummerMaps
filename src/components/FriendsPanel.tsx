@@ -402,8 +402,6 @@ export function FriendsPanel({ initialCode = "" }: { initialCode?: string }) {
 
         {friends.length === 0 ? (
           <div className="friends-empty">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/path-mark.svg" alt="" width={56} height={56} />
             <p>Two paths that haven&apos;t connected yet.</p>
             <p className="meta">Share your username to find each other.</p>
           </div>
