@@ -33,11 +33,12 @@ const PROMPTS = [
   "a small kindness",
   "textures you'd want to touch",
   "transitions",
+  "hidden beauty",
 ];
 
 /** Pin a specific calendar day to a prompt (YYYY-MM-DD → prompt). */
 const PROMPT_OVERRIDES: Record<string, string> = {
-  "2026-08-08": "transitions",
+  "2026-08-08": "hidden beauty",
 };
 
 /** Stable day index from local calendar date (YYYY-MM-DD). */
