@@ -22,7 +22,12 @@ import {
 import { colorForDevice } from "@/lib/colors";
 import { detectCrossings } from "@/lib/crossings";
 import { getDeviceId } from "@/lib/device";
-import { curvedLineThrough } from "@/lib/pathGeometry";
+import {
+  curvedLineThrough,
+  curveSliceBetweenStops,
+  displayCoordsByCheckInId,
+  type LngLat,
+} from "@/lib/pathGeometry";
 import type { CheckIn, PathSeries } from "@/lib/types";
 import { CheckInDetail } from "./CheckInDetail";
 import { PathMap, type MapViewMode, type PathReplayVisual } from "./PathMap";
@@ -211,6 +216,35 @@ export function UnifiedMapView() {
     );
   }, [myPath, friendPaths]);
 
+  /** Full curved geometry per device — fixed for the whole replay (all stops). */
+  const pathCurvesByDevice = useMemo(() => {
+    const series = [
+      ...(myPath ? [myPath] : []),
+      ...friendPaths,
+    ];
+    const display = displayCoordsByCheckInId(series);
+    const curves = new Map<string, LngLat[]>();
+    const stopIndex = new Map<string, Map<string, number>>();
+
+    for (const path of series) {
+      const sorted = [...path.checkins].sort((a, b) =>
+        a.created_at.localeCompare(b.created_at),
+      );
+      const indexById = new Map<string, number>();
+      sorted.forEach((c, i) => indexById.set(c.id, i));
+      stopIndex.set(path.deviceId, indexById);
+
+      if (sorted.length < 2) continue;
+      const stops = sorted.map((c) => {
+        const pos = display.get(c.id) ?? { lat: c.lat, lng: c.lng };
+        return [pos.lng, pos.lat] as LngLat;
+      });
+      curves.set(path.deviceId, curvedLineThrough(stops));
+    }
+
+    return { curves, stopIndex };
+  }, [myPath, friendPaths]);
+
   const strangerCrossingCount = useMemo(() => {
     if (!myPath || myPath.checkins.length === 0) return 0;
     const knownIds = new Set<string>();
@@ -383,10 +417,19 @@ export function UnifiedMapView() {
       color: string,
       token: number,
     ): Promise<void> => {
-      const coords = curvedLineThrough([
-        [from.lng, from.lat],
-        [to.lng, to.lat],
-      ]);
+      const full = pathCurvesByDevice.curves.get(to.device_id);
+      const indices = pathCurvesByDevice.stopIndex.get(to.device_id);
+      const fromIdx = indices?.get(from.id);
+      const toIdx = indices?.get(to.id);
+      const coords =
+        full && fromIdx != null && toIdx != null && toIdx > fromIdx
+          ? curveSliceBetweenStops(full, fromIdx, toIdx)
+          : curvedLineThrough([
+              [from.lng, from.lat],
+              [to.lng, to.lat],
+            ]);
+      if (coords.length < 2) return Promise.resolve();
+
       const start = performance.now();
       return new Promise((resolve) => {
         const tick = (now: number) => {
@@ -405,14 +448,14 @@ export function UnifiedMapView() {
           if (t < 1) {
             requestAnimationFrame(tick);
           } else {
-            setDrawing(null);
+            // Leave the final frame up; caller clears after committed path catches up.
             resolve();
           }
         };
         requestAnimationFrame(tick);
       });
     },
-    [],
+    [pathCurvesByDevice],
   );
 
   const runReplayFrom = useCallback(
@@ -447,14 +490,18 @@ export function UnifiedMapView() {
         if (prev) {
           await animateLine(prev, c, color, token);
           if (abortRef.current !== token) return;
-          lineDevices.add(c.device_id);
-          setRevealedLineDevices(new Set(lineDevices));
         }
         lastByDevice.set(c.device_id, c);
-
         pinIds.add(c.id);
+        if (prev) lineDevices.add(c.device_id);
+
+        // Reveal pin + committed curve before clearing the drawing overlay
+        // so the precomputed path takes over without a shape jump.
         setExpandingPinId(c.id);
         setVisiblePinIds(new Set(pinIds));
+        setRevealedLineDevices(new Set(lineDevices));
+        setDrawing(null);
+
         await sleep(PIN_MS);
         if (abortRef.current !== token) return;
         setExpandingPinId(null);
