@@ -9,6 +9,7 @@ import {
   uploadCheckInPhoto,
 } from "@/lib/api";
 import { useAuthOptional } from "@/lib/auth";
+import { playShutterSound } from "@/lib/clickSound";
 import { getDeviceId } from "@/lib/device";
 import {
   getCurrentPosition,
@@ -518,6 +519,7 @@ export function CheckInForm() {
         ctx.scale(-1, 1);
       }
       ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      playShutterSound();
 
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
