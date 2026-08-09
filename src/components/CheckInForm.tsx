@@ -2,7 +2,7 @@
 
 import imageCompression from "browser-image-compression";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import {
   createCheckIn,
   storageMode,
@@ -21,6 +21,19 @@ import { getTodaysPrompt } from "@/lib/prompts";
 
 type Status = "idle" | "locating" | "located" | "uploading" | "done" | "error";
 type CameraPhase = "idle" | "live" | "preview";
+type FacingMode = "environment" | "user";
+
+type ZoomCapability = { min: number; max: number; step?: number };
+
+function readZoomCapability(track: MediaStreamTrack): ZoomCapability | null {
+  const caps = track.getCapabilities() as MediaTrackCapabilities & {
+    zoom?: ZoomCapability | number;
+  };
+  const z = caps.zoom;
+  if (!z || typeof z === "number") return null;
+  if (!(z.max > z.min)) return null;
+  return z;
+}
 
 export function CheckInForm() {
   const router = useRouter();
@@ -32,6 +45,15 @@ export function CheckInForm() {
   const capturingRef = useRef(false);
   const postingRef = useRef(false);
   const captionRef = useRef("");
+  const facingModeRef = useRef<FacingMode>("environment");
+  const zoomRef = useRef(1);
+  const zoomMinRef = useRef(1);
+  const zoomMaxRef = useRef(1);
+  const hwZoomRef = useRef(false);
+  const touchCameraRef = useRef(false);
+  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(
+    null,
+  );
   const [phase, setPhase] = useState<CameraPhase>("idle");
   const [preview, setPreview] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
@@ -41,10 +63,28 @@ export function CheckInForm() {
   const [capturing, setCapturing] = useState(false);
   const [spottedAt, setSpottedAt] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState("");
+  const [facingMode, setFacingMode] = useState<FacingMode>("environment");
+  const [zoom, setZoom] = useState(1);
+  const [zoomMin, setZoomMin] = useState(1);
+  const [zoomMax, setZoomMax] = useState(1);
+  const [hwZoom, setHwZoom] = useState(false);
+  const [touchCamera, setTouchCamera] = useState(false);
+  const [canFlip, setCanFlip] = useState(false);
   const prompt = getTodaysPrompt();
+
+  facingModeRef.current = facingMode;
+  zoomRef.current = zoom;
+  zoomMinRef.current = zoomMin;
+  zoomMaxRef.current = zoomMax;
+  hwZoomRef.current = hwZoom;
 
   useEffect(() => {
     getDeviceId();
+    const touch =
+      window.matchMedia("(pointer: coarse)").matches ||
+      navigator.maxTouchPoints > 1;
+    touchCameraRef.current = touch;
+    setTouchCamera(touch);
   }, []);
 
   useEffect(() => {
@@ -109,7 +149,110 @@ export function CheckInForm() {
     setPreview(null);
   }
 
-  async function startCamera() {
+  function syncZoomForFacing(facing: FacingMode, track: MediaStreamTrack | null) {
+    // Zoom is phone-only (pinch). Laptops never get a zoom range.
+    if (!touchCameraRef.current || facing === "user") {
+      setHwZoom(false);
+      hwZoomRef.current = false;
+      setZoomMin(1);
+      setZoomMax(1);
+      zoomMinRef.current = 1;
+      zoomMaxRef.current = 1;
+      setZoom(1);
+      zoomRef.current = 1;
+      return;
+    }
+
+    const caps = track ? readZoomCapability(track) : null;
+    if (caps) {
+      setHwZoom(true);
+      hwZoomRef.current = true;
+      setZoomMin(caps.min);
+      setZoomMax(caps.max);
+      zoomMinRef.current = caps.min;
+      zoomMaxRef.current = caps.max;
+      setZoom(caps.min);
+      zoomRef.current = caps.min;
+      return;
+    }
+
+    // Digital zoom fallback for mobile back camera.
+    setHwZoom(false);
+    hwZoomRef.current = false;
+    setZoomMin(1);
+    setZoomMax(4);
+    zoomMinRef.current = 1;
+    zoomMaxRef.current = 4;
+    setZoom(1);
+    zoomRef.current = 1;
+  }
+
+  async function refreshCanFlip() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter((d) => d.kind === "videoinput");
+      setCanFlip(cams.length >= 2);
+    } catch {
+      setCanFlip(false);
+    }
+  }
+
+  async function applyZoom(next: number) {
+    if (!touchCameraRef.current) return;
+    if (facingModeRef.current !== "environment") return;
+    const min = zoomMinRef.current;
+    const max = zoomMaxRef.current;
+    if (!(max > min)) return;
+    const value = Math.min(max, Math.max(min, next));
+    setZoom(value);
+    zoomRef.current = value;
+    if (!hwZoomRef.current) return;
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      await track.applyConstraints({
+        advanced: [{ zoom: value } as unknown as MediaTrackConstraintSet],
+      });
+    } catch {
+      // Some browsers advertise zoom but reject applyConstraints.
+    }
+  }
+
+  function pinchDistance(touches: React.TouchList) {
+    const a = touches[0];
+    const b = touches[1];
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  }
+
+  function onCameraTouchStart(e: TouchEvent) {
+    if (!touchCameraRef.current) return;
+    if (facingModeRef.current !== "environment") return;
+    if (!(zoomMaxRef.current > zoomMinRef.current)) return;
+    if (e.touches.length !== 2) {
+      pinchRef.current = null;
+      return;
+    }
+    pinchRef.current = {
+      startDist: pinchDistance(e.touches),
+      startZoom: zoomRef.current,
+    };
+  }
+
+  function onCameraTouchMove(e: TouchEvent) {
+    if (!pinchRef.current || e.touches.length !== 2) return;
+    e.preventDefault();
+    const dist = pinchDistance(e.touches);
+    if (pinchRef.current.startDist <= 0) return;
+    const next =
+      pinchRef.current.startZoom * (dist / pinchRef.current.startDist);
+    void applyZoom(next);
+  }
+
+  function onCameraTouchEnd(e: TouchEvent) {
+    if (e.touches.length < 2) pinchRef.current = null;
+  }
+
+  async function startCamera(nextFacing?: FacingMode) {
     if (!navigator.mediaDevices?.getUserMedia) {
       setStatus("error");
       setMessage("Camera is not supported in this browser.");
@@ -121,6 +264,9 @@ export function CheckInForm() {
       return;
     }
 
+    const facing = nextFacing ?? facingModeRef.current;
+    setFacingMode(facing);
+    facingModeRef.current = facing;
     setStartingCamera(true);
     setStatus("idle");
     setMessage("");
@@ -128,18 +274,45 @@ export function CheckInForm() {
 
     try {
       stopCamera();
-      clearPreview();
+      if (phase !== "live") {
+        clearPreview();
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          facingMode: { ideal: "environment" },
+          facingMode: { ideal: facing },
           width: { ideal: 1600 },
           height: { ideal: 1200 },
         },
       });
       streamRef.current = stream;
+      const track = stream.getVideoTracks()[0] ?? null;
+      const settingsFacing = track?.getSettings?.().facingMode;
+      if (settingsFacing === "user" || settingsFacing === "environment") {
+        setFacingMode(settingsFacing);
+        facingModeRef.current = settingsFacing;
+        syncZoomForFacing(settingsFacing, track);
+      } else {
+        syncZoomForFacing(facing, track);
+      }
+      if (
+        facingModeRef.current === "environment" &&
+        track &&
+        hwZoomRef.current
+      ) {
+        try {
+          await track.applyConstraints({
+            advanced: [
+              { zoom: zoomRef.current } as unknown as MediaTrackConstraintSet,
+            ],
+          });
+        } catch {
+          // ignore
+        }
+      }
       setPhase("live");
+      void refreshCanFlip();
     } catch (err) {
       stopCamera();
       setPhase("idle");
@@ -152,6 +325,87 @@ export function CheckInForm() {
       } else {
         setMessage("Could not open the camera. Try again.");
       }
+    } finally {
+      setStartingCamera(false);
+    }
+  }
+
+  async function flipCamera() {
+    if (capturingRef.current || startingCamera || phase !== "live") return;
+    if (!canFlip) return;
+
+    const prevFacing = facingModeRef.current;
+    const next: FacingMode =
+      prevFacing === "environment" ? "user" : "environment";
+    const previousStream = streamRef.current;
+    setStartingCamera(true);
+    setMessage("");
+
+    try {
+      let newStream: MediaStream;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { exact: next },
+            width: { ideal: 1600 },
+            height: { ideal: 1200 },
+          },
+        });
+      } catch {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: next },
+            width: { ideal: 1600 },
+            height: { ideal: 1200 },
+          },
+        });
+      }
+
+      const track = newStream.getVideoTracks()[0] ?? null;
+      const settingsFacing = track?.getSettings?.().facingMode;
+      // If the device ignored the request and gave the same facing, abort.
+      if (
+        settingsFacing &&
+        (settingsFacing === "user" || settingsFacing === "environment") &&
+        settingsFacing === prevFacing
+      ) {
+        for (const t of newStream.getTracks()) t.stop();
+        setMessage("This device only has one camera.");
+        setCanFlip(false);
+        return;
+      }
+
+      streamRef.current = newStream;
+      if (previousStream) {
+        for (const t of previousStream.getTracks()) t.stop();
+      }
+      const appliedFacing: FacingMode =
+        settingsFacing === "user" || settingsFacing === "environment"
+          ? settingsFacing
+          : next;
+      setFacingMode(appliedFacing);
+      facingModeRef.current = appliedFacing;
+      syncZoomForFacing(appliedFacing, track);
+      if (videoRef.current) {
+        videoRef.current.srcObject = newStream;
+        void videoRef.current.play().catch(() => {
+          setMessage("Could not start the camera preview.");
+        });
+      }
+      void refreshCanFlip();
+    } catch {
+      // Keep the existing stream attached — never leave a black preview.
+      if (previousStream && videoRef.current && !videoRef.current.srcObject) {
+        videoRef.current.srcObject = previousStream;
+        void videoRef.current.play().catch(() => {});
+      }
+      streamRef.current = previousStream;
+      setFacingMode(prevFacing);
+      facingModeRef.current = prevFacing;
+      setMessage("Couldn't switch cameras on this device.");
+      void refreshCanFlip();
     } finally {
       setStartingCamera(false);
     }
@@ -241,12 +495,30 @@ export function CheckInForm() {
     setCapturing(true);
     setMessage("Processing photo…");
     try {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const selfie = facingModeRef.current === "user";
+      const useDigitalZoom =
+        touchCameraRef.current &&
+        !selfie &&
+        !hwZoomRef.current &&
+        zoomRef.current > 1;
+      const z = useDigitalZoom ? zoomRef.current : 1;
+      const sw = vw / z;
+      const sh = vh / z;
+      const sx = (vw - sw) / 2;
+      const sy = (vh - sh) / 2;
+
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = vw;
+      canvas.height = vh;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas unavailable");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (selfie) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
       playShutterSound();
 
       const blob = await new Promise<Blob>((resolve, reject) => {
@@ -384,13 +656,44 @@ export function CheckInForm() {
           </>
         ) : phase === "live" ? (
           <>
-            <video
-              ref={videoRef}
-              className="photo-camera"
-              playsInline
-              muted
-              autoPlay
-            />
+            <div
+              className={`camera-viewport${
+                touchCamera &&
+                facingMode === "environment" &&
+                zoomMax > zoomMin
+                  ? " camera-viewport-pinchable"
+                  : ""
+              }`}
+              onTouchStart={onCameraTouchStart}
+              onTouchMove={onCameraTouchMove}
+              onTouchEnd={onCameraTouchEnd}
+              onTouchCancel={onCameraTouchEnd}
+            >
+              <video
+                ref={videoRef}
+                className={`photo-camera${
+                  facingMode === "user" ? " photo-camera-selfie" : ""
+                }${
+                  touchCamera &&
+                  facingMode === "environment" &&
+                  !hwZoom &&
+                  zoom > 1
+                    ? " photo-camera-zoomed"
+                    : ""
+                }`}
+                style={
+                  touchCamera &&
+                  facingMode === "environment" &&
+                  !hwZoom &&
+                  zoom > 1
+                    ? { transform: `scale(${zoom})` }
+                    : undefined
+                }
+                playsInline
+                muted
+                autoPlay
+              />
+            </div>
             {capturing ? (
               <div
                 className="camera-processing"
@@ -419,7 +722,23 @@ export function CheckInForm() {
                 >
                   <span className="camera-shutter-inner" />
                 </button>
-                <span className="camera-chrome-spacer" aria-hidden="true" />
+                {canFlip ? (
+                  <button
+                    type="button"
+                    className="camera-flip"
+                    aria-label={
+                      facingMode === "environment"
+                        ? "Switch to front camera"
+                        : "Switch to back camera"
+                    }
+                    disabled={startingCamera}
+                    onClick={() => void flipCamera()}
+                  >
+                    Flip
+                  </button>
+                ) : (
+                  <span className="camera-chrome-spacer" aria-hidden="true" />
+                )}
               </div>
             )}
           </>

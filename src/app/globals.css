@@ -579,6 +579,25 @@ a {
   background: #0b0f12;
 }
 
+.camera-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #0b0f12;
+}
+
+.camera-viewport-pinchable {
+  touch-action: none;
+}
+
+.photo-camera-selfie {
+  transform: scaleX(-1);
+}
+
+.photo-camera-zoomed {
+  transform-origin: center center;
+}
+
 .camera-chrome {
   position: absolute;
   inset: auto 0 0;
@@ -631,6 +650,28 @@ a {
   width: 1px;
   height: 1px;
   justify-self: end;
+}
+
+.camera-flip {
+  justify-self: end;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.55rem 0.95rem;
+  cursor: pointer;
+}
+
+.camera-flip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.camera-flip:not(:disabled):active {
+  transform: scale(0.97);
 }
 
 .camera-post {
@@ -3011,8 +3052,6 @@ input.underline-input:focus {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  overflow: visible;
-  position: static;
 }
 
 .profile-page-header {
@@ -3757,6 +3796,34 @@ input.underline-input:focus {
 
 .profile-share-block .profile-share-actions {
   justify-content: center;
+}
+
+/* ——— Compact share utility strip (Profile) ——— */
+.share-card {
+  padding: 0.85rem 1rem;
+  margin: 0.25rem 0 0.9rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-green-secondary) 10%, var(--color-bg-card));
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.share-label {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-green-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.share-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.share-actions .btn {
+  flex: 1 1 0;
 }
 
 .account-panel {

@@ -120,38 +120,32 @@ export function ProfileView() {
         </header>
       )}
 
-      <section className="profile-block profile-share-block">
-        <h2>Share</h2>
+      <div className="share-card">
+        <p className="share-label">Share your profile</p>
         {username ? (
-          <>
-            <p className="meta">
-              Let friends find you with your username or a link.
-            </p>
-            <p className="profile-handle">@{username}</p>
-            <div className="profile-share-actions">
-              <button
-                type="button"
-                className="btn primary"
-                onClick={() => void copyText(username, "username")}
-              >
-                {copied === "username" ? "Copied" : "Copy username"}
-              </button>
-              <button
-                type="button"
-                className="btn ghost"
-                disabled={!shareUrl}
-                onClick={() => void onShare()}
-              >
-                {copied === "link" ? "Link copied" : "Share"}
-              </button>
-            </div>
-          </>
+          <div className="share-actions">
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => void copyText(username, "username")}
+            >
+              {copied === "username" ? "Copied" : `Copy @${username}`}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={!shareUrl}
+              onClick={() => void onShare()}
+            >
+              {copied === "link" ? "Link copied" : "Share link"}
+            </button>
+          </div>
         ) : (
           <p className="meta">
             Choose a username above so friends can find you.
           </p>
         )}
-      </section>
+      </div>
 
       <section className="profile-block">
         <h2>Your activity</h2>
