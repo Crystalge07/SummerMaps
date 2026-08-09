@@ -31,6 +31,20 @@ export const TORONTO_LANDMARKS: Landmark[] = [
   { name: "the Beaches", lat: 43.6677, lng: -79.2967 },
   { name: "Liberty Village", lat: 43.6383, lng: -79.4205 },
   { name: "the Financial District", lat: 43.6486, lng: -79.3817 },
+  { name: "STACKT Market", lat: 43.6415, lng: -79.4022 },
+  { name: "King West", lat: 43.645, lng: -79.402 },
+  { name: "Roncesvalles", lat: 43.6492, lng: -79.4504 },
+  { name: "Little Italy", lat: 43.6554, lng: -79.4198 },
+  { name: "Leslieville", lat: 43.6625, lng: -79.337 },
+  { name: "Riverdale", lat: 43.668, lng: -79.351 },
+  { name: "Danforth", lat: 43.6784, lng: -79.345 },
+  { name: "North York Centre", lat: 43.768, lng: -79.413 },
+  { name: "Downsview", lat: 43.75, lng: -79.479 },
+  { name: "York University", lat: 43.7735, lng: -79.5019 },
+  { name: "Vaughan", lat: 43.856, lng: -79.508 },
+  { name: "Canada's Wonderland", lat: 43.843, lng: -79.542 },
+  { name: "Scarborough Town Centre", lat: 43.7764, lng: -79.258 },
+  { name: "Mississauga City Centre", lat: 43.593, lng: -79.644 },
 ];
 
 const EARTH_KM = 6371;
@@ -67,6 +81,23 @@ export function nearestLandmark(
   }
   if (!best || bestKm > maxKm) return null;
   return best;
+}
+
+/**
+ * Short place people would recognize — for lists like densest areas.
+ * Prefers landmark, then a stored place name, else a soft nearby fallback.
+ */
+export function areaLabel(
+  lat: number,
+  lng: number,
+  fallbackPlace?: string | null,
+  maxKm = 8,
+): string {
+  const landmark = nearestLandmark(lat, lng, maxKm);
+  if (landmark) return landmark.name;
+  const place = fallbackPlace?.trim();
+  if (place) return place;
+  return "the city";
 }
 
 /** Insights feed line for a capture. */

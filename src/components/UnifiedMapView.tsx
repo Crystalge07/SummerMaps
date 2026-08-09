@@ -533,6 +533,8 @@ export function UnifiedMapView() {
     myPath !== null &&
     myPath.checkins.length === 0;
 
+  const showReplay = pathsOn && replayCheckIns.length > 0;
+
   return (
     <div className="unified-map">
       <div className="map-top-chrome">
@@ -542,20 +544,54 @@ export function UnifiedMapView() {
             <span>what everyone spotted today</span>
           </p>
         )}
+      </div>
 
+      {loading && <p className="map-status-chip">Loading…</p>}
+      {error && !loading && (
+        <p className="map-status-chip error">{error}</p>
+      )}
+
+      {!loading && strangerCrossingCount >= 5 && (
+        <div className="map-stranger-crossing-banner" role="status">
+          <p>
+            You crossed paths with strangers {strangerCrossingCount} times
+            today without knowing it 🌐
+          </p>
+          <Link href="/friends">Add friends to see who →</Link>
+        </div>
+      )}
+
+      <PathMap
+        paths={visiblePaths}
+        crossings={friendCrossings}
+        anonymizePhotos={false}
+        onSelectCheckIn={setSelected}
+        viewMode={pathsOn ? "lines" : viewMode}
+        focus={pathsOn ? "all" : "checkins"}
+        initialCenter={initialCenter}
+        ownDeviceId={myPath?.deviceId ?? myDeviceId}
+        replayVisual={showReplay ? replayVisual : null}
+        onDeleteCheckIn={
+          myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
+        }
+      />
+
+      {legendPaths.length > 0 && (
+        <ul className="map-legend-pills">
+          {legendPaths.map((p) => (
+            <li key={p.deviceId} className="map-legend-pill">
+              <span className="swatch" style={{ background: p.color }} />
+              {p.label.split(" · ")[0].split(" ")[0]}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="map-bottom-chrome">
         <aside
           ref={panelRef}
           className={panelOpen ? "map-paths-panel open" : "map-paths-panel"}
         >
-          <button
-            type="button"
-            className="map-paths-toggle"
-            aria-expanded={panelOpen}
-            onClick={() => setPanelOpen((open) => !open)}
-          >
-            Paths
-          </button>
-
           {panelOpen && (
             <div className="map-paths-body" role="group" aria-label="Path layers">
               <label className="map-paths-option">
@@ -602,64 +638,34 @@ export function UnifiedMapView() {
               </div>
             </div>
           )}
+
+          <button
+            type="button"
+            className="map-paths-toggle"
+            aria-expanded={panelOpen}
+            onClick={() => setPanelOpen((open) => !open)}
+          >
+            Paths
+          </button>
         </aside>
-      </div>
 
-      {loading && <p className="map-status-chip">Loading…</p>}
-      {error && !loading && (
-        <p className="map-status-chip error">{error}</p>
-      )}
-
-      {!loading && strangerCrossingCount >= 5 && (
-        <div className="map-stranger-crossing-banner" role="status">
-          <p>
-            You crossed paths with strangers {strangerCrossingCount} times
-            today without knowing it 🌐
-          </p>
-          <Link href="/friends">Add friends to see who →</Link>
-        </div>
-      )}
-
-      <PathMap
-        paths={visiblePaths}
-        crossings={friendCrossings}
-        anonymizePhotos={false}
-        onSelectCheckIn={setSelected}
-        viewMode={pathsOn ? "lines" : viewMode}
-        focus={pathsOn ? "all" : "checkins"}
-        initialCenter={initialCenter}
-        ownDeviceId={myPath?.deviceId ?? myDeviceId}
-        replayVisual={replayVisual}
-        onDeleteCheckIn={
-          myDeviceId ? (c) => handleDeleteOwnCheckIn(c) : undefined
-        }
-      />
-
-      {legendPaths.length > 0 && (
-        <ul className="map-legend-pills">
-          {legendPaths.map((p) => (
-            <li key={p.deviceId} className="map-legend-pill">
-              <span className="swatch" style={{ background: p.color }} />
-              {p.label.split(" · ")[0].split(" ")[0]}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="map-replay-dock">
-        <PathReplayControls
-          enabled
-          progress={replayProgress}
-          isReplaying={isReplaying}
-          onReplay={onReplay}
-          onScrub={onScrub}
-          onScrubEnd={onScrubEnd}
-        />
-        {replayHint ? (
-          <p className="meta" role="status">
-            {replayHint}
-          </p>
-        ) : null}
+        {showReplay && (
+          <div className="map-replay-dock">
+            <PathReplayControls
+              enabled
+              progress={replayProgress}
+              isReplaying={isReplaying}
+              onReplay={onReplay}
+              onScrub={onScrub}
+              onScrubEnd={onScrubEnd}
+            />
+            {replayHint ? (
+              <p className="meta" role="status">
+                {replayHint}
+              </p>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {showEmptyState && (

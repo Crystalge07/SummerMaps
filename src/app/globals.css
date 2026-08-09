@@ -1473,10 +1473,10 @@ input.underline-input:focus {
   transform: translateX(-50%);
   z-index: 4;
   margin: 0;
-  padding: 0.35rem 1rem;
-  border-radius: 999px;
-  background: var(--paper, var(--color-bg-card));
-  border: 1px solid var(--sage, var(--color-green-secondary));
+  padding: 0.5rem 0.85rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 92%, white);
+  border: 1px solid var(--line);
   box-shadow: var(--card-shadow);
   white-space: nowrap;
 }
@@ -1494,23 +1494,36 @@ input.underline-input:focus {
   display: none;
 }
 
-.map-paths-panel {
+.map-bottom-chrome {
   position: absolute;
-  bottom: 140px;
   left: 50%;
+  bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 5;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  width: min(22rem, calc(100% - 1.5rem));
+  pointer-events: none;
+}
+
+.map-bottom-chrome > * {
+  pointer-events: auto;
+}
+
+.map-paths-panel {
+  display: flex;
+  flex-direction: column;
   align-items: stretch;
   gap: 0.45rem;
-  max-width: min(12.5rem, calc(100% - 4rem));
-  width: max-content;
+  width: min(12.5rem, 100%);
+  flex: 0 0 auto;
 }
 
 .map-paths-toggle {
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--paper) 92%, white);
   color: var(--ink);
   font-family: var(--font-display), "Playfair Display", serif;
@@ -1519,6 +1532,7 @@ input.underline-input:focus {
   padding: 0.5rem 0.85rem;
   cursor: pointer;
   box-shadow: var(--card-shadow);
+  width: 100%;
   transform: none;
   transition: none;
 }
@@ -1550,7 +1564,7 @@ input.underline-input:focus {
   display: grid;
   gap: 0.55rem;
   padding: 0.75rem;
-  border-radius: 16px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--paper) 94%, white);
   border: 1px solid var(--line);
   box-shadow: var(--card-shadow-lg);
@@ -1605,7 +1619,7 @@ input.underline-input:focus {
   gap: 0.25rem;
   background: color-mix(in srgb, var(--sage) 18%, transparent);
   padding: 0.2rem;
-  border-radius: 999px;
+  border-radius: 10px;
 }
 
 .map-paths-view .toggle {
@@ -1617,7 +1631,7 @@ input.underline-input:focus {
   font-size: 0.8rem;
   font-weight: 700;
   padding: 0.4rem 0.5rem;
-  border-radius: 999px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
@@ -1731,21 +1745,16 @@ input.underline-input:focus {
 }
 
 .map-replay-dock {
-  position: absolute;
-  left: 50%;
-  bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  z-index: 5;
   display: grid;
-  justify-items: center;
-  gap: 0.4rem;
+  justify-items: stretch;
+  width: 100%;
 }
 
 .map-replay-dock .replay-bar {
   background: color-mix(in srgb, var(--paper) 94%, white);
   border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 0.4rem 0.6rem;
+  border-radius: 12px;
+  padding: 0.45rem 0.65rem;
   box-shadow: var(--card-shadow-lg);
 }
 
@@ -2325,7 +2334,7 @@ input.underline-input:focus {
 }
 
 .replay-bar .btn {
-  border-radius: 999px;
+  border-radius: 12px;
   padding: 0.55rem 1.1rem;
 }
 
