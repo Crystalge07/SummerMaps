@@ -1447,7 +1447,7 @@ input.underline-input:focus {
 
 .map-paths-panel {
   position: absolute;
-  top: 80px;
+  top: 120px;
   right: 10px;
   bottom: auto;
   z-index: 5;
@@ -2886,6 +2886,83 @@ input.underline-input:focus {
   line-height: 1.45;
   color: var(--ink);
   min-width: 0;
+}
+
+.see-all-btn {
+  background: none;
+  border: none;
+  color: var(--color-green-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.captures-sheet {
+  position: fixed;
+  inset: 0;
+  background: rgba(44, 62, 45, 0.4);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.captures-sheet-inner {
+  background: var(--color-bg);
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.captures-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--color-green-secondary);
+}
+
+.captures-sheet-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.captures-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.captures-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.captures-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #e8e3db;
+  font-size: 0.875rem;
+}
+
+.captures-row time {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .insights-section-head {
