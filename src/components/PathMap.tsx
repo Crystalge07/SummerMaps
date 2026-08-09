@@ -58,6 +58,38 @@ function slicePath(checkins: CheckIn[], progress: number) {
   return checkins.slice(0, count);
 }
 
+function pathLabelForDevice(
+  paths: PathSeries[],
+  deviceId: string,
+): string | null {
+  const path = paths.find((p) => p.deviceId === deviceId);
+  if (!path) return null;
+  const raw = path.label.replace(/^You ·\s*/, "").trim();
+  if (!raw || raw === "You") return null;
+  return raw.startsWith("@") ? raw.slice(1) : raw;
+}
+
+function crossingFriendName(
+  crossing: PathCrossing,
+  paths: PathSeries[],
+  ownDeviceId?: string,
+): string {
+  const otherId =
+    ownDeviceId &&
+    (crossing.aDeviceId === ownDeviceId ||
+      crossing.bDeviceId === ownDeviceId)
+      ? crossing.aDeviceId === ownDeviceId
+        ? crossing.bDeviceId
+        : crossing.aDeviceId
+      : crossing.bDeviceId;
+  return (
+    pathLabelForDevice(paths, otherId) ||
+    pathLabelForDevice(paths, crossing.aDeviceId) ||
+    pathLabelForDevice(paths, crossing.bDeviceId) ||
+    "a friend"
+  );
+}
+
 export function PathMap({
   paths,
   crossings = [],
@@ -73,6 +105,9 @@ export function PathMap({
 }: Props) {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const [popup, setPopup] = useState<CheckIn | null>(null);
+  const [crossingPopup, setCrossingPopup] = useState<PathCrossing | null>(
+    null,
+  );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -88,6 +123,19 @@ export function PathMap({
       setDeleteError("");
     }
   }, [paths, popup]);
+
+  useEffect(() => {
+    if (!crossingPopup) return;
+    const stillThere = crossings.some(
+      (x) =>
+        x.aDeviceId === crossingPopup.aDeviceId &&
+        x.bDeviceId === crossingPopup.bDeviceId &&
+        x.lat === crossingPopup.lat &&
+        x.lng === crossingPopup.lng &&
+        x.timeA === crossingPopup.timeA,
+    );
+    if (!stillThere) setCrossingPopup(null);
+  }, [crossings, crossingPopup]);
 
   const displayCoords = useMemo(
     () => displayCoordsByCheckInId(paths),
@@ -153,8 +201,9 @@ export function PathMap({
     viewMode === "lines" && focus !== "checkins" && focus !== "crossings";
   const showMarkers =
     viewMode === "lines" && focus !== "paths" && focus !== "crossings";
-  const showCrossings =
-    focus === "crossings" || (focus === "all" && crossings.length > 0);
+  // Show whenever parent passes crossings (was gated on focus === "all"|"crossings",
+  // which hid dots in city/checkins focus).
+  const showCrossings = crossings.length > 0;
 
   const uniqueMarkers = useMemo(() => {
     const seen = new Set<string>();
@@ -476,12 +525,38 @@ export function PathMap({
               latitude={x.lat}
               longitude={x.lng}
             >
-              <div
+              <button
+                type="button"
                 className={`crossing-dot${focus === "crossings" ? " crossing-dot-focus" : ""}`}
                 title="Paths crossed here"
+                aria-label="Path crossing"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPopup(null);
+                  setCrossingPopup(x);
+                }}
               />
             </Marker>
           ))}
+
+        {crossingPopup && (
+          <Popup
+            latitude={crossingPopup.lat}
+            longitude={crossingPopup.lng}
+            anchor="bottom"
+            offset={16}
+            closeOnClick
+            onClose={() => setCrossingPopup(null)}
+            className="crossing-popup"
+          >
+            <p className="crossing-popup-text">
+              📍 You and @
+              {crossingFriendName(crossingPopup, paths, ownDeviceId)} were
+              both here around{" "}
+              {format(new Date(crossingPopup.timeA), "h:mm a")} today
+            </p>
+          </Popup>
+        )}
 
         {popup && (
           <Popup
