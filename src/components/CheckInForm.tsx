@@ -772,11 +772,10 @@ export function CheckInForm() {
 
       {status !== "done" && (
         <label className="field checkin-caption">
-          <span className="sr-only">Notes</span>
           <input
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            placeholder="Notes"
+            placeholder="add a note..."
             maxLength={120}
             disabled={busy}
           />
@@ -802,11 +801,12 @@ export function CheckInForm() {
         </p>
       )}
 
-      <p className="checkin-footer">
-        saving to your path ·{" "}
-        {storageMode() === "supabase" ? "synced" : "local demo"}
-        {auth?.profile ? ` · @${auth.profile.username}` : ""}
-      </p>
+      <div className="checkin-footer">
+        <span className="footer-status">
+          ✓ {storageMode() === "supabase" ? "synced" : "local demo"}
+          {auth?.profile ? ` · @${auth.profile.username}` : ""}
+        </span>
+      </div>
     </div>
   );
 }
