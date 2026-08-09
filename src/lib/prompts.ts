@@ -32,7 +32,13 @@ const PROMPTS = [
   "water nearby",
   "a small kindness",
   "textures you'd want to touch",
+  "transitions",
 ];
+
+/** Pin a specific calendar day to a prompt (YYYY-MM-DD → prompt). */
+const PROMPT_OVERRIDES: Record<string, string> = {
+  "2026-08-08": "transitions",
+};
 
 /** Stable day index from local calendar date (YYYY-MM-DD). */
 export function dayKey(date = new Date()): string {
@@ -51,7 +57,9 @@ function hashDay(key: string): number {
 }
 
 export function getTodaysPrompt(date = new Date()): string {
-  return PROMPTS[hashDay(dayKey(date)) % PROMPTS.length];
+  const key = dayKey(date);
+  if (PROMPT_OVERRIDES[key]) return PROMPT_OVERRIDES[key];
+  return PROMPTS[hashDay(key) % PROMPTS.length];
 }
 
 export function getPromptMeta(date = new Date()) {
